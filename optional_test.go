@@ -193,23 +193,6 @@ func TestOptional_OrElsePanic(t *testing.T) {
 	})
 }
 
-func TestOptional_DoWith(t *testing.T) {
-	o := Empty[string]()
-	called := false
-	f := func(v string) {
-		called = true
-	}
-	o2 := o.DoWith(f)
-	require.False(t, called)
-	require.Equal(t, o, o2)
-
-	called = false
-	o = Of("aaa")
-	o2 = o.DoWith(f)
-	require.True(t, called)
-	require.Equal(t, o, o2)
-}
-
 func TestOptional_Filter(t *testing.T) {
 	o := Empty[string]()
 	called := false
