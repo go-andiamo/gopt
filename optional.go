@@ -186,16 +186,6 @@ func (o Optional[T]) OrElsePanic(v any) {
 	}
 }
 
-// DoWith if the value is present, calls the supplied function with the value
-//
-// Returns the original optional
-func (o Optional[T]) DoWith(f func(v T)) Optional[T] {
-	if o.present {
-		f(o.value)
-	}
-	return o
-}
-
 // Filter if the value is present and calling the supplied filter function returns true, returns a new optional describing the value
 //
 // Otherwise returns an empty optional

@@ -118,14 +118,6 @@ func main() {
     </tr>
     <tr>
         <td>
-            <code>DoWith(f func(v T))</code><br>
-            if the value is present, calls the supplied function with the value<br>
-            <em>returns the original optional</em>
-        </td>
-        <td><code>Optional[T]</code></td>
-    </tr>
-    <tr>
-        <td>
             <code>Filter(f func(v T) bool)</code><br>
             if the value is present and calling the supplied filter function returns true, returns a new optional describing the value<br>
             Otherwise returns an empty optional
