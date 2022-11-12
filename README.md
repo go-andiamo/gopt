@@ -37,6 +37,62 @@ func main() {
     println(opt2.OrElse(-1))
 }
 ```
+[try on go-playground](https://go.dev/play/p/U0dKTrGlG-e)
+
+Optionals can also be very useful when used in conjunction with JSON unmarshalling - to determine whether unmarshalled properties were actually present, with a valid value, in the JSON.  The following code demonstrates...
+```go
+package main
+
+import (
+    "encoding/json"
+    "fmt"
+    . "github.com/go-andiamo/gopt"
+)
+
+type NormalStruct struct {
+    Foo string
+    Bar int
+    Baz float64
+}
+
+type OptsStruct struct {
+    Foo Optional[string]
+    Bar Optional[int]
+    Baz Optional[float64]
+}
+
+func main() {
+    jdata := `{"Foo": null, "Bar": 1}`
+
+    normal := &NormalStruct{}
+    err := json.Unmarshal([]byte(jdata), normal)
+    if err == nil {
+        // was property Foo set???
+        fmt.Printf("'Foo` was set to \"%s\"???\n", normal.Foo) // was it really?
+        // was property Bar actually set to 0???
+        fmt.Printf("'Bar` was set to \"%d\"???\n", normal.Bar) // was it really?
+        // was property Baz actually set to 0???
+        fmt.Printf("'Baz` was set to \"%f\"???\n", normal.Baz) // was it really?
+    } else {
+        println(err.Error())
+    }
+
+    println()
+    // now try with optionals...
+    opts := &OptsStruct{}
+    err = json.Unmarshal([]byte(jdata), opts)
+    if err == nil {
+        fmt.Printf("'Foo` was set - %t\n", opts.Foo.WasSet())
+        fmt.Printf("'Foo` had valid value - %t\n", opts.Foo.IsPresent())
+        fmt.Printf("'Bar` was set - %t\n", opts.Bar.WasSet())
+        fmt.Printf("'Bar` had valid value - %t\n", opts.Bar.IsPresent())
+        fmt.Printf("'Baz` was set - %t\n", opts.Baz.WasSet())
+        fmt.Printf("'Baz` had valid value - %t\n", opts.Baz.IsPresent())
+    } else {
+        println(err.Error())
+    }
+}
+```
 
 ## Methods
 <table>
@@ -62,6 +118,15 @@ func main() {
         <td>
             <code>IsPresent()</code><br>
             returns true if the value is present, otherwise false
+        </td>
+        <td><code>bool</code></td>
+    </tr>
+    <tr>
+        <td>
+            <code>WasSet()</code><br>
+            returns true if the last setting operation set the value, otherwise false<br>
+            Setting operations are <code>UnmarshalJSON()</code>, <code>Scan()</code> and <code>OrElseSet()</code><br>
+            Use method <code>UnSet()</code> to clear this flag alone
         </td>
         <td><code>bool</code></td>
     </tr>
@@ -159,6 +224,21 @@ func main() {
         </td>
         <td><code>error</code></td>
     </tr>
+    <tr>
+        <td>
+            <code>Clear()</code><br>
+            clears the optional<br>
+            Clearing sets the present to false, the set flag to false and the value to an empty value
+        </td>
+        <td><code>Optional[T]</code></td>
+    </tr>
+    <tr>
+        <td>
+            <code>UnSet()</code><br>
+            clears the set flag (see <code>WasSet()</code>)
+        </td>
+        <td><code>Optional[T]</code></td>
+    </tr>
 </table>
 
 ## Constructors
@@ -190,6 +270,108 @@ func main() {
         <td>
             <code>Empty[T any]() Optional[T]</code><br>
             Creates a new empty (not-present) optional of the specified type
+        </td>
+    </tr>
+    <tr>
+        <td>
+            <code>EmptyString() Optional[string]</code><br>
+            returns an empty optional of type <code>string</code>
+        </td>
+    </tr>
+    <tr>
+        <td>
+            <code>EmptyInterface() Optional[interface{}]</code><br>
+            returns an empty optional of type <code>interface{}</code>
+        </td>
+    </tr>
+    <tr>
+        <td>
+            <code>EmptyInt() Optional[int]</code><br>
+            returns an empty optional of type <code>int</code>
+        </td>
+    </tr>
+    <tr>
+        <td>
+            <code>EmptyInt8() Optional[int8]</code><br>
+7            returns an empty optional of type <code>int8</code>
+        </td>
+    </tr>
+    <tr>
+        <td>
+            <code>EmptyInt16() Optional[int16]</code><br>
+            returns an empty optional of type <code>int16</code>
+        </td>
+    </tr>
+    <tr>
+        <td>
+            <code>EmptyInt32() Optional[int32]</code><br>
+            returns an empty optional of type <code>int32</code>
+        </td>
+    </tr>
+    <tr>
+        <td>
+            <code>EmptyInt64() Optional[int64]</code><br>
+            returns an empty optional of type <code>int64</code>
+        </td>
+    </tr>
+    <tr>
+        <td>
+            <code>EmptyUint() Optional[uint]</code><br>
+            returns an empty optional of type <code>uint</code>
+        </td>
+    </tr>
+    <tr>
+        <td>
+            <code>EmptyUint8() Optional[uint8]</code><br>
+            returns an empty optional of type <code>uint8</code>
+        </td>
+    </tr>
+    <tr>
+        <td>
+            <code>EmptyUint16() Optional[uint16]</code><br>
+            returns an empty optional of type <code>uint16</code>
+        </td>
+    </tr>
+    <tr>
+        <td>
+            <code>EmptyUint32() Optional[uint32]</code><br>
+            returns an empty optional of type <code>uint32</code>
+        </td>
+    </tr>
+    <tr>
+        <td>
+            <code>func EmptyUint64() Optional[uint64]</code><br>
+            returns an empty optional of type <code>uint64</code>
+        </td>
+    </tr>
+    <tr>
+        <td>
+            <code>EmptyBool() Optional[bool]</code><br>
+            returns an empty optional of type <code>bool</code>
+        </td>
+    </tr>
+    <tr>
+        <td>
+            <code>EmptyFloat32() Optional[float32]</code><br>
+            returns an empty optional of type <code>float32</code>
+        </td>
+    </tr>
+    <tr>
+        <td>
+            <code>EmptyFloat64() Optional[float64]</code><br>
+            returns an empty optional of type <code>float64</code>
+        </td>
+    </tr>
+    <tr>
+        <td>
+            <code>EmptyByte() Optional[byte]</code><br>
+            returns an empty optional of type <code>byte</code>
+        </td>
+    </tr>
+    <tr>
+        <td>
+            <code>EmptyRune() Optional[rune]</code><br>
+            returns an empty optional of type <code>rune</code>
         </td>
     </tr>
 </table>

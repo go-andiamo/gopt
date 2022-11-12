@@ -9,46 +9,6 @@ import (
 
 type String *string
 
-var (
-	_EmptyString    = Optional[string]{}
-	_EmptyInterface = Optional[interface{}]{}
-	_EmptyInt       = Optional[int]{}
-	_EmptyInt8      = Optional[int8]{}
-	_EmptyInt16     = Optional[int16]{}
-	_EmptyInt32     = Optional[int32]{}
-	_EmptyInt64     = Optional[int64]{}
-	_EmptyUint      = Optional[uint]{}
-	_EmptyUint8     = Optional[uint8]{}
-	_EmptyUint16    = Optional[uint16]{}
-	_EmptyUint32    = Optional[uint32]{}
-	_EmptyUint64    = Optional[uint64]{}
-	_EmptyBool      = Optional[bool]{}
-	_EmptyFloat32   = Optional[float32]{}
-	_EmptyFloat64   = Optional[float64]{}
-	_EmptyByte      = Optional[byte]{}
-	_EmptyRune      = Optional[rune]{}
-)
-
-var (
-	EmptyString    = _EmptyString
-	EmptyInterface = _EmptyInterface
-	EmptyInt       = _EmptyInt
-	EmptyInt8      = _EmptyInt8
-	EmptyInt16     = _EmptyInt16
-	EmptyInt32     = _EmptyInt32
-	EmptyInt64     = _EmptyInt64
-	EmptyUint      = _EmptyUint
-	EmptyUint8     = _EmptyUint8
-	EmptyUint16    = _EmptyUint16
-	EmptyUint32    = _EmptyUint32
-	EmptyUint64    = _EmptyUint64
-	EmptyBool      = _EmptyBool
-	EmptyFloat32   = _EmptyFloat32
-	EmptyFloat64   = _EmptyFloat64
-	EmptyByte      = _EmptyByte
-	EmptyRune      = _EmptyRune
-)
-
 // Of creates a new optional with the supplied value
 func Of[T any](value T) Optional[T] {
 	return Optional[T]{
@@ -106,14 +66,25 @@ func isPresent(v any) bool {
 type Optional[T any] struct {
 	present bool
 	value   T
+	set     bool
 }
 
 // Get returns the value and an error if the value is not present
 func (o Optional[T]) Get() (T, error) {
 	if !o.present {
-		return o.value, errors.New("not present")
+		return o.emptyValue(), errors.New("not present")
 	}
 	return o.value, nil
+}
+
+func (o Optional[T]) emptyValue() T {
+	return (Optional[T]{}).value
+}
+
+func (o *Optional[T]) clear(set bool) {
+	o.value = o.emptyValue()
+	o.present = false
+	o.set = set
 }
 
 // AsEmpty returns a new empty optional of the same type
@@ -126,6 +97,29 @@ func (o Optional[T]) AsEmpty() Optional[T] {
 // IsPresent returns true if the value is present, otherwise false
 func (o Optional[T]) IsPresent() bool {
 	return o.present
+}
+
+// WasSet returns true if the last setting operation set the value, otherwise false
+//
+// Setting operations are UnmarshalJSON, Scan and OrElseSet
+//
+// Use UnSet() to clear this flag alone
+func (o Optional[T]) WasSet() bool {
+	return o.set
+}
+
+// UnSet clears the set flag (see WasSet)
+func (o *Optional[T]) UnSet() Optional[T] {
+	o.set = false
+	return *o
+}
+
+// Clear clears the optional
+//
+// Clearing sets the present to false, the set flag to false and the value to an empty value
+func (o *Optional[T]) Clear() Optional[T] {
+	o.clear(false)
+	return *o
 }
 
 // IfPresent if the value is present, calls the supplied function with the value, otherwise does nothing
@@ -164,9 +158,15 @@ func (o Optional[T]) OrElseGet(f func() T) T {
 
 // OrElseSet if the value is not present it is set to the supplied value
 func (o *Optional[T]) OrElseSet(v T) Optional[T] {
-	if !o.present && isPresent(v) {
-		o.present = true
-		o.value = v
+	if !o.present {
+		if isPresent(v) {
+			o.present = true
+			o.value = v
+		} else {
+			o.present = false
+			o.value = o.emptyValue()
+		}
+		o.set = true
 	}
 	return *o
 }
@@ -238,38 +238,50 @@ func (o Optional[T]) MarshalJSON() ([]byte, error) {
 func (o *Optional[T]) UnmarshalJSON(data []byte) error {
 	if len(data) == 4 && data[0] == 'n' && data[1] == 'u' && data[2] == 'l' && data[3] == 'l' {
 		o.present = false
+		o.value = o.emptyValue()
+		o.set = true
 		return nil
 	}
 	v := o.value
 	err := json.Unmarshal(data, &v)
-	if err == nil {
+	if err == nil && isPresent(v) {
 		o.present = true
 		o.value = v
 	} else {
 		o.present = false
+		o.value = o.emptyValue()
 	}
+	o.set = true
 	return err
 }
 
 // Scan implements sql.Scan
 func (o *Optional[T]) Scan(value interface{}) error {
 	if value == nil {
-		o.present = false
+		o.clear(true)
 	} else if av, ok := value.(T); ok {
 		o.present = true
 		o.value = av
+		o.set = true
 	} else if ok, err := o.callScannable(value); ok {
 		return err
 	} else if bd, ok := value.([]byte); ok {
 		var uv T
-		if err := json.Unmarshal(bd, &uv); err == nil {
-			o.present = true
-			o.value = uv
+		if unErr := json.Unmarshal(bd, &uv); unErr == nil {
+			if isPresent(uv) {
+				o.present = true
+				o.value = uv
+			} else {
+				o.present = false
+				o.value = o.emptyValue()
+			}
+			o.set = true
 		} else {
-			o.present = false
+			o.clear(true)
+			return unErr
 		}
 	} else {
-		o.present = false
+		o.clear(true)
 	}
 	return nil
 }
@@ -290,9 +302,97 @@ func (o *Optional[T]) callScannable(value interface{}) (bool, error) {
 		err := sanv.Scan(value)
 		if err == nil {
 			o.value = anv.(T)
-			o.present = true
+			o.present = isPresent(anv)
+			o.set = true
+		} else {
+			o.clear(true)
 		}
 		return true, err
 	}
 	return false, nil
+}
+
+// EmptyString returns an empty optional of type string
+func EmptyString() Optional[string] {
+	return Empty[string]()
+}
+
+// EmptyInterface returns an empty optional of type interface{}
+func EmptyInterface() Optional[interface{}] {
+	return Empty[interface{}]()
+}
+
+// EmptyInt returns an empty optional of type int
+func EmptyInt() Optional[int] {
+	return Empty[int]()
+}
+
+// EmptyInt8 returns an empty optional of type int8
+func EmptyInt8() Optional[int8] {
+	return Empty[int8]()
+}
+
+// EmptyInt16 returns an empty optional of type int16
+func EmptyInt16() Optional[int16] {
+	return Empty[int16]()
+}
+
+// EmptyInt32 returns an empty optional of type int32
+func EmptyInt32() Optional[int32] {
+	return Empty[int32]()
+}
+
+// EmptyInt64 returns an empty optional of type int64
+func EmptyInt64() Optional[int64] {
+	return Empty[int64]()
+}
+
+// EmptyUint returns an empty optional of type uint
+func EmptyUint() Optional[uint] {
+	return Empty[uint]()
+}
+
+// EmptyUint8 returns an empty optional of type uint8
+func EmptyUint8() Optional[uint8] {
+	return Empty[uint8]()
+}
+
+// EmptyUint16 returns an empty optional of type uint16
+func EmptyUint16() Optional[uint16] {
+	return Empty[uint16]()
+}
+
+// EmptyUint32 returns an empty optional of type uint32
+func EmptyUint32() Optional[uint32] {
+	return Empty[uint32]()
+}
+
+// EmptyUint64 returns an empty optional of type uint64
+func EmptyUint64() Optional[uint64] {
+	return Empty[uint64]()
+}
+
+// EmptyBool returns an empty optional of type bool
+func EmptyBool() Optional[bool] {
+	return Empty[bool]()
+}
+
+// EmptyFloat32 returns an empty optional of type float32
+func EmptyFloat32() Optional[float32] {
+	return Empty[float32]()
+}
+
+// EmptyFloat64 returns an empty optional of type float64
+func EmptyFloat64() Optional[float64] {
+	return Empty[float64]()
+}
+
+// EmptyByte returns an empty optional of type byte
+func EmptyByte() Optional[byte] {
+	return Empty[byte]()
+}
+
+// EmptyRune returns an empty optional of type rune
+func EmptyRune() Optional[rune] {
+	return Empty[rune]()
 }

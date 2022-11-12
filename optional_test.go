@@ -83,6 +83,29 @@ func TestOptional_IsPresent(t *testing.T) {
 	require.False(t, o.IsPresent())
 }
 
+func TestOptional_Clear(t *testing.T) {
+	o := EmptyString()
+	require.False(t, o.IsPresent())
+	require.False(t, o.WasSet())
+	v, err := o.Get()
+	require.Error(t, err)
+	require.Equal(t, "", v)
+
+	o.OrElseSet("foo")
+	require.True(t, o.IsPresent())
+	require.True(t, o.WasSet())
+	v, err = o.Get()
+	require.NoError(t, err)
+	require.Equal(t, "foo", v)
+
+	o.Clear()
+	require.False(t, o.IsPresent())
+	require.False(t, o.WasSet())
+	v, err = o.Get()
+	require.Error(t, err)
+	require.Equal(t, "", v)
+}
+
 func TestOptional_IfPresent(t *testing.T) {
 	called := false
 	collected := ""
@@ -278,12 +301,28 @@ func TestOptional_MarshalUnmarshalJSON(t *testing.T) {
 	err = json.Unmarshal([]byte(str), myA3)
 	require.NoError(t, err)
 	require.False(t, myA3.Foo.IsPresent())
+	require.True(t, myA3.Foo.WasSet())
 	require.False(t, myA3.Bar.IsPresent())
+	require.True(t, myA3.Bar.WasSet())
 	require.False(t, myA3.Baz.IsPresent())
+	require.True(t, myA3.Baz.WasSet())
 
 	data, err = json.Marshal(myA3)
 	require.NoError(t, err)
 	require.Equal(t, `{"foo":null,"bar":null,"baz":null}`, string(data[:]))
+
+	str = `{"foo":null}`
+	myA3 = &aStruct{}
+	err = json.Unmarshal([]byte(str), myA3)
+	require.NoError(t, err)
+	require.False(t, myA3.Foo.IsPresent())
+	require.True(t, myA3.Foo.WasSet())
+	myA3.Foo.UnSet()
+	require.False(t, myA3.Foo.WasSet())
+	require.False(t, myA3.Bar.IsPresent())
+	require.False(t, myA3.Bar.WasSet())
+	require.False(t, myA3.Baz.IsPresent())
+	require.False(t, myA3.Baz.WasSet())
 
 	str = `{"foo":1.2,"bar":null,"baz":null}`
 	err = json.Unmarshal([]byte(str), myA3)
@@ -317,9 +356,16 @@ func TestOptional_Scan(t *testing.T) {
 	err = o3.Scan("")
 	require.NoError(t, err)
 	require.False(t, o3.IsPresent())
+	o3.UnSet()
 	err = o3.Scan([]byte(`["foo","bar"]`))
+	require.Error(t, err)
+	require.False(t, o3.IsPresent())
+	require.True(t, o3.WasSet())
+	o3.UnSet()
+	err = o3.Scan([]byte(`null`))
 	require.NoError(t, err)
 	require.False(t, o3.IsPresent())
+	require.True(t, o3.WasSet())
 
 	o4 := OfNillable[*scannable](nil)
 	require.False(t, o4.present)
@@ -334,6 +380,19 @@ func TestOptional_Scan(t *testing.T) {
 	require.True(t, o4.present)
 	err = o4.Scan("abc")
 	require.Error(t, err)
+
+	o4.UnSet()
+	err = o4.Scan(nil)
+	require.NoError(t, err)
+	require.False(t, o4.IsPresent())
+	require.True(t, o4.WasSet())
+
+	o5 := EmptyInterface()
+	require.False(t, o5.IsPresent())
+	require.False(t, o5.WasSet())
+	err = o5.Scan(nil)
+	require.False(t, o5.IsPresent())
+	require.True(t, o5.WasSet())
 }
 
 type scannable struct {
@@ -349,21 +408,21 @@ func (s *scannable) Scan(src any) error {
 }
 
 func TestEmpties(t *testing.T) {
-	require.False(t, EmptyString.IsPresent())
-	require.False(t, EmptyInterface.IsPresent())
-	require.False(t, EmptyInt.IsPresent())
-	require.False(t, EmptyInt8.IsPresent())
-	require.False(t, EmptyInt16.IsPresent())
-	require.False(t, EmptyInt32.IsPresent())
-	require.False(t, EmptyInt64.IsPresent())
-	require.False(t, EmptyUint.IsPresent())
-	require.False(t, EmptyUint8.IsPresent())
-	require.False(t, EmptyUint16.IsPresent())
-	require.False(t, EmptyUint32.IsPresent())
-	require.False(t, EmptyUint64.IsPresent())
-	require.False(t, EmptyBool.IsPresent())
-	require.False(t, EmptyFloat32.IsPresent())
-	require.False(t, EmptyFloat64.IsPresent())
-	require.False(t, EmptyByte.IsPresent())
-	require.False(t, EmptyRune.IsPresent())
+	require.False(t, EmptyString().IsPresent())
+	require.False(t, EmptyInterface().IsPresent())
+	require.False(t, EmptyInt().IsPresent())
+	require.False(t, EmptyInt8().IsPresent())
+	require.False(t, EmptyInt16().IsPresent())
+	require.False(t, EmptyInt32().IsPresent())
+	require.False(t, EmptyInt64().IsPresent())
+	require.False(t, EmptyUint().IsPresent())
+	require.False(t, EmptyUint8().IsPresent())
+	require.False(t, EmptyUint16().IsPresent())
+	require.False(t, EmptyUint32().IsPresent())
+	require.False(t, EmptyUint64().IsPresent())
+	require.False(t, EmptyBool().IsPresent())
+	require.False(t, EmptyFloat32().IsPresent())
+	require.False(t, EmptyFloat64().IsPresent())
+	require.False(t, EmptyByte().IsPresent())
+	require.False(t, EmptyRune().IsPresent())
 }
