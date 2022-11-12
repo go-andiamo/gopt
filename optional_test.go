@@ -151,6 +151,82 @@ func TestOptional_IfPresentOtherwise(t *testing.T) {
 	require.True(t, calledOther)
 }
 
+func TestOptional_IfSet(t *testing.T) {
+	o := EmptyString()
+	o.OrElseSet("aaa")
+	setCalled := false
+	notPresentCalled := false
+	value := ""
+	setFn := func(v string) {
+		setCalled = true
+		value = v
+	}
+	notPresentFn := func() {
+		notPresentCalled = true
+	}
+	o.IfSet(setFn, notPresentFn)
+	require.True(t, setCalled)
+	require.Equal(t, "aaa", value)
+	require.False(t, notPresentCalled)
+
+	setCalled = false
+	notPresentCalled = false
+	o.Clear()
+	err := o.UnmarshalJSON([]byte(`null`))
+	require.NoError(t, err)
+	o.IfSet(setFn, notPresentFn)
+	require.False(t, setCalled)
+	require.True(t, notPresentCalled)
+}
+
+func TestOptional_IfSetOtherwise(t *testing.T) {
+	type oStruct struct {
+		Foo Optional[string]
+	}
+	setCalled := false
+	notPresentCalled := false
+	otherCalled := false
+	setFn := func(v string) {
+		setCalled = true
+	}
+	notPresentFn := func() {
+		notPresentCalled = true
+	}
+	otherFn := func() {
+		otherCalled = true
+	}
+
+	strc := &oStruct{}
+	err := json.Unmarshal([]byte(`{}`), strc)
+	require.NoError(t, err)
+	strc.Foo.IfSetOtherwise(setFn, notPresentFn, otherFn)
+	require.False(t, setCalled)
+	require.False(t, notPresentCalled)
+	require.True(t, otherCalled)
+
+	setCalled = false
+	notPresentCalled = false
+	otherCalled = false
+	strc = &oStruct{}
+	err = json.Unmarshal([]byte(`{"Foo":null}`), strc)
+	require.NoError(t, err)
+	strc.Foo.IfSetOtherwise(setFn, notPresentFn, otherFn)
+	require.False(t, setCalled)
+	require.True(t, notPresentCalled)
+	require.False(t, otherCalled)
+
+	setCalled = false
+	notPresentCalled = false
+	otherCalled = false
+	strc = &oStruct{}
+	err = json.Unmarshal([]byte(`{"Foo":"abc"}`), strc)
+	require.NoError(t, err)
+	strc.Foo.IfSetOtherwise(setFn, notPresentFn, otherFn)
+	require.True(t, setCalled)
+	require.False(t, notPresentCalled)
+	require.False(t, otherCalled)
+}
+
 func TestOptional_OrElse(t *testing.T) {
 	o := Empty[string]()
 	v := o.OrElse("bbb")
@@ -391,6 +467,7 @@ func TestOptional_Scan(t *testing.T) {
 	require.False(t, o5.IsPresent())
 	require.False(t, o5.WasSet())
 	err = o5.Scan(nil)
+	require.NoError(t, err)
 	require.False(t, o5.IsPresent())
 	require.True(t, o5.WasSet())
 }

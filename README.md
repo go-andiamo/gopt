@@ -148,6 +148,24 @@ func main() {
     </tr>
     <tr>
         <td>
+            <code>IfSet(f func(v T), notPresent func())</code><br>
+            if the value was set and is present, calls the supplied function with the value<br>
+            if the value was set but is not present, calls the supplied notPresent function<br>
+            otherwise, does nothing
+        </td>
+        <td><code>Optional[T]</code></td>
+    </tr>
+    <tr>
+        <td>
+            <code>IfSetOtherwise(f func(v T), notPresent func(), other func())</code><br>
+            if the value was set and is present, calls the supplied function with the value<br>
+            if the value was set but is not present, calls the supplied notPresent function<br>
+            otherwise, calls the other func
+        </td>
+        <td><code><code>Optional[T]</code></code></td>
+    </tr>
+    <tr>
+        <td>
             <code>OrElse(other T)</code><br>
             returns the value if present, otherwise returns other
         </td>

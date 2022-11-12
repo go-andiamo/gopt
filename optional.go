@@ -124,7 +124,7 @@ func (o *Optional[T]) Clear() Optional[T] {
 
 // IfPresent if the value is present, calls the supplied function with the value, otherwise does nothing
 func (o Optional[T]) IfPresent(f func(v T)) Optional[T] {
-	if o.present {
+	if o.present && f != nil {
 		f(o.value)
 	}
 	return o
@@ -132,9 +132,39 @@ func (o Optional[T]) IfPresent(f func(v T)) Optional[T] {
 
 // IfPresentOtherwise if the value is present, calls the supplied function with the value, otherwise calls the other function
 func (o Optional[T]) IfPresentOtherwise(f func(v T), other func()) Optional[T] {
-	if o.present {
+	if o.present && f != nil {
 		f(o.value)
-	} else {
+	} else if !o.present && other != nil {
+		other()
+	}
+	return o
+}
+
+// IfSet if the value was set and is present, calls the supplied function with the value
+//
+// if the value was set but is not present, calls the supplied notPresent function
+//
+// otherwise, does nothing
+func (o Optional[T]) IfSet(f func(v T), notPresent func()) Optional[T] {
+	if o.set && o.present && f != nil {
+		f(o.value)
+	} else if o.set && !o.present && notPresent != nil {
+		notPresent()
+	}
+	return o
+}
+
+// IfSetOtherwise if the value was set and is present, calls the supplied function with the value
+//
+// if the value was set but is not present, calls the supplied notPresent function
+//
+// otherwise, calls the other func
+func (o Optional[T]) IfSetOtherwise(f func(v T), notPresent func(), other func()) Optional[T] {
+	if o.set && o.present && f != nil {
+		f(o.value)
+	} else if o.set && !o.present && notPresent != nil {
+		notPresent()
+	} else if !o.set && !o.present && other != nil {
 		other()
 	}
 	return o
