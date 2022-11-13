@@ -109,6 +109,14 @@ func main() {
     </tr>
     <tr>
         <td>
+            <code>GetOk()</code><br>
+            returns the value and true if the value is present<br>
+            otherwise returns an empty value and false<br>
+        </td>
+        <td><code>(T, bool)</code></td>
+    </tr>
+    <tr>
+        <td>
             <code>AsEmpty()</code><br>
             returns a new empty optional of the same type
         </td>
@@ -163,6 +171,14 @@ func main() {
             otherwise, calls the other func
         </td>
         <td><code><code>Optional[T]</code></code></td>
+    </tr>
+    <tr>
+        <td>
+            <code>IfElse(condition bool, other T)</code><br>
+            if the supplied condition is true and the value is present, returns the value<br>
+            otherwise the other value is returned
+        </td>
+        <td><code>T</code></td>
     </tr>
     <tr>
         <td>

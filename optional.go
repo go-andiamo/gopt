@@ -9,6 +9,9 @@ import (
 
 type String *string
 
+// NotPresent is the error returned from Optional.Get when the value is not present
+var NotPresent = errors.New("not present")
+
 // Of creates a new optional with the supplied value
 func Of[T any](value T) Optional[T] {
 	return Optional[T]{
@@ -72,9 +75,22 @@ type Optional[T any] struct {
 // Get returns the value and an error if the value is not present
 func (o Optional[T]) Get() (T, error) {
 	if !o.present {
-		return o.emptyValue(), errors.New("not present")
+		return o.emptyValue(), NotPresent
 	}
 	return o.value, nil
+}
+
+// GetOk returns the value and true if the value is present
+//
+// otherwise returns an empty value and false
+//
+// GetOk is similar to Get, except that rather than returning an error if not present it
+// returns a boolean
+func (o Optional[T]) GetOk() (T, bool) {
+	if o.present {
+		return o.value, true
+	}
+	return o.emptyValue(), false
 }
 
 func (o Optional[T]) emptyValue() T {
@@ -170,6 +186,16 @@ func (o Optional[T]) IfSetOtherwise(f func(v T), notPresent func(), other func()
 	return o
 }
 
+// IfElse if the supplied condition is true and the value is present, returns the value
+//
+// otherwise the other value is returned
+func (o Optional[T]) IfElse(condition bool, other T) T {
+	if condition && o.present {
+		return o.value
+	}
+	return other
+}
+
 // OrElse returns the value if present, otherwise returns other
 func (o Optional[T]) OrElse(other T) T {
 	if o.present {
@@ -182,8 +208,10 @@ func (o Optional[T]) OrElse(other T) T {
 func (o Optional[T]) OrElseGet(f func() T) T {
 	if o.present {
 		return o.value
+	} else if f != nil {
+		return f()
 	}
-	return f()
+	return o.emptyValue()
 }
 
 // OrElseSet if the value is not present it is set to the supplied value
@@ -202,8 +230,13 @@ func (o *Optional[T]) OrElseSet(v T) Optional[T] {
 }
 
 // OrElseError returns the supplied error if the value is not present, otherwise returns nil
+//
+// if the supplied error is nil and the value is not present, a NotPresent error is returned
 func (o Optional[T]) OrElseError(err error) error {
 	if !o.present {
+		if err == nil {
+			return NotPresent
+		}
 		return err
 	}
 	return nil
@@ -220,7 +253,7 @@ func (o Optional[T]) OrElsePanic(v any) {
 //
 // Otherwise returns an empty optional
 func (o Optional[T]) Filter(f func(v T) bool) Optional[T] {
-	if o.present && f(o.value) {
+	if o.present && f != nil && f(o.value) {
 		return Optional[T]{
 			present: true,
 			value:   o.value,
@@ -236,7 +269,7 @@ func (o Optional[T]) Filter(f func(v T) bool) Optional[T] {
 //
 // Otherwise returns an empty optional
 func (o Optional[T]) Map(f func(v T) any) Optional[any] {
-	if o.present {
+	if o.present && f != nil {
 		v := f(o.value)
 		if isPresent(v) {
 			return Of(v)

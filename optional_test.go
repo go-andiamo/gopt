@@ -83,6 +83,30 @@ func TestOptional_IsPresent(t *testing.T) {
 	require.False(t, o.IsPresent())
 }
 
+func TestOptional_Get(t *testing.T) {
+	o := EmptyString()
+	_, err := o.Get()
+	require.Error(t, err)
+	require.Equal(t, NotPresent, err)
+
+	o = Of("aaa")
+	v, err := o.Get()
+	require.NoError(t, err)
+	require.Equal(t, "aaa", v)
+}
+
+func TestOptional_GetOk(t *testing.T) {
+	o := EmptyString()
+	v, ok := o.GetOk()
+	require.False(t, ok)
+	require.Equal(t, "", v)
+
+	o = Of("aaa")
+	v, ok = o.GetOk()
+	require.True(t, ok)
+	require.Equal(t, "aaa", v)
+}
+
 func TestOptional_Clear(t *testing.T) {
 	o := EmptyString()
 	require.False(t, o.IsPresent())
@@ -227,6 +251,24 @@ func TestOptional_IfSetOtherwise(t *testing.T) {
 	require.False(t, otherCalled)
 }
 
+func TestOptional_IfElse(t *testing.T) {
+	o := Empty[string]()
+	v := o.IfElse(true, "abc")
+	require.Equal(t, "abc", v)
+
+	o = Of("xyz")
+	v = o.IfElse(false, "abc")
+	require.Equal(t, "abc", v)
+	v = o.IfElse(true, "abc")
+	require.Equal(t, "xyz", v)
+	v = o.IfElse(o.WasSet(), "abc")
+	require.Equal(t, "abc", v)
+	err := o.Scan("scanned")
+	require.NoError(t, err)
+	v = o.IfElse(o.WasSet(), "abc")
+	require.Equal(t, "scanned", v)
+}
+
 func TestOptional_OrElse(t *testing.T) {
 	o := Empty[string]()
 	v := o.OrElse("bbb")
@@ -253,6 +295,11 @@ func TestOptional_OrElseGet(t *testing.T) {
 	v = o.OrElseGet(f)
 	require.Equal(t, "bbb", v)
 	require.False(t, called)
+
+	o = Empty[string]()
+	var ef func() string
+	v = o.OrElseGet(ef)
+	require.Equal(t, "", v)
 }
 
 func TestOptional_OrElseSet(t *testing.T) {
@@ -277,6 +324,9 @@ func TestOptional_OrElseError(t *testing.T) {
 	err := o.OrElseError(errors.New("not there"))
 	require.Error(t, err)
 	require.Equal(t, "not there", err.Error())
+
+	err = o.OrElseError(nil)
+	require.Equal(t, NotPresent, err)
 
 	o = Of("abc")
 	err = o.OrElseError(errors.New("not there"))
