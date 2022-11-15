@@ -125,17 +125,17 @@ func (o Optional[T]) WasSet() bool {
 }
 
 // UnSet clears the set flag (see WasSet)
-func (o *Optional[T]) UnSet() Optional[T] {
+func (o *Optional[T]) UnSet() *Optional[T] {
 	o.set = false
-	return *o
+	return o
 }
 
 // Clear clears the optional
 //
 // Clearing sets the present to false, the set flag to false and the value to an empty value
-func (o *Optional[T]) Clear() Optional[T] {
+func (o *Optional[T]) Clear() *Optional[T] {
 	o.clear(false)
-	return *o
+	return o
 }
 
 // IfPresent if the value is present, calls the supplied function with the value, otherwise does nothing
@@ -215,7 +215,7 @@ func (o Optional[T]) OrElseGet(f func() T) T {
 }
 
 // OrElseSet if the value is not present it is set to the supplied value
-func (o *Optional[T]) OrElseSet(v T) Optional[T] {
+func (o *Optional[T]) OrElseSet(v T) *Optional[T] {
 	if !o.present {
 		if isPresent(v) {
 			o.present = true
@@ -226,7 +226,7 @@ func (o *Optional[T]) OrElseSet(v T) Optional[T] {
 		}
 		o.set = true
 	}
-	return *o
+	return o
 }
 
 // OrElseError returns the supplied error if the value is not present, otherwise returns nil

@@ -46,6 +46,7 @@ package main
 import (
     "encoding/json"
     "fmt"
+
     . "github.com/go-andiamo/gopt"
 )
 
@@ -68,11 +69,11 @@ func main() {
     err := json.Unmarshal([]byte(jdata), normal)
     if err == nil {
         // was property Foo set???
-        fmt.Printf("'Foo` was set to \"%s\"???\n", normal.Foo) // was it really?
+        fmt.Printf("'Foo' was set to \"%s\"???\n", normal.Foo) // was it really?
         // was property Bar actually set to 0???
-        fmt.Printf("'Bar` was set to \"%d\"???\n", normal.Bar) // was it really?
-        // was property Baz actually set to 0???
-        fmt.Printf("'Baz` was set to \"%f\"???\n", normal.Baz) // was it really?
+        fmt.Printf("'Bar' was set to \"%d\"???\n", normal.Bar) // was it really?
+        // was property Baz actually set to 0.000???
+        fmt.Printf("'Baz' was set to \"%f\"???\n", normal.Baz) // was it really?
     } else {
         println(err.Error())
     }
@@ -82,17 +83,45 @@ func main() {
     opts := &OptsStruct{}
     err = json.Unmarshal([]byte(jdata), opts)
     if err == nil {
-        fmt.Printf("'Foo` was set - %t\n", opts.Foo.WasSet())
-        fmt.Printf("'Foo` had valid value - %t\n", opts.Foo.IsPresent())
-        fmt.Printf("'Bar` was set - %t\n", opts.Bar.WasSet())
-        fmt.Printf("'Bar` had valid value - %t\n", opts.Bar.IsPresent())
-        fmt.Printf("'Baz` was set - %t\n", opts.Baz.WasSet())
-        fmt.Printf("'Baz` had valid value - %t\n", opts.Baz.IsPresent())
+        opts.Foo.IfSetOtherwise(
+            func(v string) {
+                fmt.Printf("'Foo' was set to \"%s\"\n", v)
+            },
+            func() {
+                println("'Foo' was set but not to a valid value")
+            },
+            func() {
+                println("'Foo' was not set at all")
+            },
+        )
+        opts.Bar.IfSetOtherwise(
+            func(v int) {
+                fmt.Printf("'Bar' was set to %d\n", v)
+            },
+            func() {
+                println("'Bar' was set but not to a valid value")
+            },
+            func() {
+                println("'Bar' was not set at all")
+            },
+        )
+        opts.Baz.IfSetOtherwise(
+            func(v float64) {
+                fmt.Printf("'Baz' was set to %f\n", v)
+            },
+            func() {
+                println("'Baz' was set but not to a valid value")
+            },
+            func() {
+                println("'Baz' was not set at all")
+            },
+        )
     } else {
         println(err.Error())
     }
 }
 ```
+[try on go-playground](https://go.dev/play/p/63eC1AJ3Qgn)
 
 ## Methods
 <table>
@@ -199,7 +228,7 @@ func main() {
             <code>OrElseSet(v T)</code><br>
             if the value is not present it is set to the supplied value
         </td>
-        <td><code>Optional[T]</code></td>
+        <td><code>*Optional[T]</code></td>
     </tr>
     <tr>
         <td>
@@ -264,14 +293,14 @@ func main() {
             clears the optional<br>
             Clearing sets the present to false, the set flag to false and the value to an empty value
         </td>
-        <td><code>Optional[T]</code></td>
+        <td><code>*Optional[T]</code></td>
     </tr>
     <tr>
         <td>
             <code>UnSet()</code><br>
             clears the set flag (see <code>WasSet()</code>)
         </td>
-        <td><code>Optional[T]</code></td>
+        <td><code>*Optional[T]</code></td>
     </tr>
 </table>
 
