@@ -307,14 +307,14 @@ func TestOptional_OrElseSet(t *testing.T) {
 	require.False(t, o.IsPresent())
 
 	o2 := o.OrElseSet(map[string]interface{}{})
-	require.Equal(t, o, o2)
+	require.Equal(t, &o, o2)
 	require.True(t, o2.IsPresent())
 	require.True(t, o.IsPresent())
 
 	o = Empty[map[string]interface{}]()
 	require.False(t, o.IsPresent())
 	o2 = o.OrElseSet(nil)
-	require.Equal(t, o, o2)
+	require.Equal(t, &o, o2)
 	require.False(t, o2.IsPresent())
 	require.False(t, o.IsPresent())
 }
@@ -532,6 +532,20 @@ func (s *scannable) Scan(src any) error {
 	s.called = true
 	s.value = src
 	return s.err
+}
+
+func TestChainCalls(t *testing.T) {
+	type myStruct struct {
+		Foo Optional[string]
+	}
+	my := &myStruct{}
+	require.False(t, my.Foo.IsPresent())
+	require.False(t, my.Foo.WasSet())
+
+	was := my.Foo.Clear().UnSet().OrElseSet("abc").WasSet()
+	require.True(t, was)
+	require.True(t, my.Foo.WasSet())
+	require.True(t, my.Foo.IsPresent())
 }
 
 func TestEmpties(t *testing.T) {

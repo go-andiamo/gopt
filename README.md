@@ -199,7 +199,7 @@ func main() {
             <code>OrElseSet(v T)</code><br>
             if the value is not present it is set to the supplied value
         </td>
-        <td><code>Optional[T]</code></td>
+        <td><code>*Optional[T]</code></td>
     </tr>
     <tr>
         <td>
@@ -264,14 +264,14 @@ func main() {
             clears the optional<br>
             Clearing sets the present to false, the set flag to false and the value to an empty value
         </td>
-        <td><code>Optional[T]</code></td>
+        <td><code>*Optional[T]</code></td>
     </tr>
     <tr>
         <td>
             <code>UnSet()</code><br>
             clears the set flag (see <code>WasSet()</code>)
         </td>
-        <td><code>Optional[T]</code></td>
+        <td><code>*Optional[T]</code></td>
     </tr>
 </table>
 
