@@ -546,6 +546,22 @@ func TestChainCalls(t *testing.T) {
 	require.True(t, was)
 	require.True(t, my.Foo.WasSet())
 	require.True(t, my.Foo.IsPresent())
+	v, ok := my.Foo.GetOk()
+	require.True(t, ok)
+	require.Equal(t, "abc", v)
+
+	o := EmptyString()
+	was = o.Clear().WasSet()
+	require.False(t, was)
+	require.False(t, o.WasSet())
+	require.False(t, o.IsPresent())
+	was = o.Clear().UnSet().OrElseSet("abc").WasSet()
+	require.True(t, was)
+	require.True(t, o.WasSet())
+	require.True(t, o.IsPresent())
+	v, ok = o.GetOk()
+	require.True(t, ok)
+	require.Equal(t, "abc", v)
 }
 
 func TestEmpties(t *testing.T) {
