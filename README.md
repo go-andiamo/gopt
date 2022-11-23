@@ -131,6 +131,29 @@ func main() {
     </tr>
     <tr>
         <td>
+            <code>AsEmpty()</code><br>
+            returns a new empty optional of the same type
+        </td>
+        <td><code>*Optional[T]</code></td>
+    </tr>
+    <tr>
+        <td>
+            <code>Clear()</code><br>
+            clears the optional<br>
+            Clearing sets the present to false, the set flag to false and the value to an empty value
+        </td>
+        <td><code>*Optional[T]</code></td>
+    </tr>
+    <tr>
+        <td>
+            <code>Filter(f func(v T) bool)</code><br>
+            if the value is present and calling the supplied filter function returns true, returns a new optional describing the value<br>
+            Otherwise returns an empty optional
+        </td>
+        <td><code>*Optional[T]</code></td>
+    </tr>
+    <tr>
+        <td>
             <code>Get()</code><br>
             returns the value and an error if the value is not present
         </td>
@@ -146,10 +169,47 @@ func main() {
     </tr>
     <tr>
         <td>
-            <code>AsEmpty()</code><br>
-            returns a new empty optional of the same type
+            <code>IfElse(condition bool, other T)</code><br>
+            if the supplied condition is true and the value is present, returns the value<br>
+            otherwise the other value is returned
         </td>
-        <td><code>Optional[T]</code></td>
+        <td><code>T</code></td>
+    </tr>
+    <tr>
+        <td>
+            <code>IfPresent(f func(v T))</code><br>
+            if the value is present, calls the supplied function with the value, otherwise does nothing<br>
+            <em>returns the original optional</em>
+        </td>
+        <td><code>*Optional[T]</code></td>
+    </tr>
+    <tr>
+        <td>
+            <code>IfPresentOtherwise(f func(v T), other func())</code><br>
+            if the value is present, calls the supplied function with the value, otherwise calls the other function<br>
+            <em>returns the original optional</em>
+        </td>
+        <td><code><code>*Optional[T]</code></code></td>
+    </tr>
+    <tr>
+        <td>
+            <code>IfSet(f func(v T), notPresent func())</code><br>
+            if the value was set and is present, calls the supplied function with the value<br>
+            if the value was set but is not present, calls the supplied notPresent function<br>
+            otherwise, does nothing<br>
+            <em>returns the original optional</em>
+        </td>
+        <td><code>*Optional[T]</code></td>
+    </tr>
+    <tr>
+        <td>
+            <code>IfSetOtherwise(f func(v T), notPresent func(), other func())</code><br>
+            if the value was set and is present, calls the supplied function with the value<br>
+            if the value was set but is not present, calls the supplied notPresent function<br>
+            otherwise, calls the other func<br>
+            <em>returns the original optional</em>
+        </td>
+        <td><code><code>*Optional[T]</code></code></td>
     </tr>
     <tr>
         <td>
@@ -160,54 +220,21 @@ func main() {
     </tr>
     <tr>
         <td>
-            <code>WasSet()</code><br>
-            returns true if the last setting operation set the value, otherwise false<br>
-            Setting operations are <code>UnmarshalJSON()</code>, <code>Scan()</code> and <code>OrElseSet()</code><br>
-            Use method <code>UnSet()</code> to clear this flag alone
+            <code>Map(f func(v T) any)</code><br>
+            if the value is present and the result of calling the supplied mapping function returns non-nil, returns
+            an optional describing that returned value<br>
+            Otherwise returns an empty optional
         </td>
-        <td><code>bool</code></td>
+        <td><code>*Optional[any]</code></td>
     </tr>
     <tr>
         <td>
-            <code>IfPresent(f func(v T))</code><br>
-            if the value is present, calls the supplied function with the value, otherwise does nothing<br>
-            <em>returns the original optional</em>
+            <code>MarshalJSON()</code><br>
+            implements JSON marshal<br>
+            if the value is present, returns the marshalled data for the value<br>
+            Otherwise, returns the marshalled data for null
         </td>
-        <td><code>Optional[T]</code></td>
-    </tr>
-    <tr>
-        <td>
-            <code>IfPresentOtherwise(f func(v T), other func())</code><br>
-            if the value is present, calls the supplied function with the value, otherwise calls the other function<br>
-            <em>returns the original optional</em>
-        </td>
-        <td><code><code>Optional[T]</code></code></td>
-    </tr>
-    <tr>
-        <td>
-            <code>IfSet(f func(v T), notPresent func())</code><br>
-            if the value was set and is present, calls the supplied function with the value<br>
-            if the value was set but is not present, calls the supplied notPresent function<br>
-            otherwise, does nothing
-        </td>
-        <td><code>Optional[T]</code></td>
-    </tr>
-    <tr>
-        <td>
-            <code>IfSetOtherwise(f func(v T), notPresent func(), other func())</code><br>
-            if the value was set and is present, calls the supplied function with the value<br>
-            if the value was set but is not present, calls the supplied notPresent function<br>
-            otherwise, calls the other func
-        </td>
-        <td><code><code>Optional[T]</code></code></td>
-    </tr>
-    <tr>
-        <td>
-            <code>IfElse(condition bool, other T)</code><br>
-            if the supplied condition is true and the value is present, returns the value<br>
-            otherwise the other value is returned
-        </td>
-        <td><code>T</code></td>
+        <td><code>([]byte, error)</code></td>
     </tr>
     <tr>
         <td>
@@ -218,10 +245,25 @@ func main() {
     </tr>
     <tr>
         <td>
+            <code>OrElseError(err error)</code><br>
+            returns the supplied error if the value is not present, otherwise returns nil
+        </td>
+        <td><code>error</code></td>
+    </tr>
+    <tr>
+        <td>
             <code>OrElseGet(f func() T)</code><br>
             returns the value if present, otherwise returns the result of calling the supplied function
         </td>
         <td><code>T</code></td>
+    </tr>
+    <tr>
+        <td>
+            <code>OrElsePanic(v any)</code><br>
+            if the value is not present, panics with the supplied value, otherwise does nothing<br>
+            <em>returns the original optional</em>
+        </td>
+        <td><code>*Optional[T]</code></td>
     </tr>
     <tr>
         <td>
@@ -232,43 +274,18 @@ func main() {
     </tr>
     <tr>
         <td>
-            <code>OrElseError(err error)</code><br>
-            returns the supplied error if the value is not present, otherwise returns nil
+            <code>Scan(value interface{})</code><br>
+            implements sql.Scan
         </td>
         <td><code>error</code></td>
     </tr>
     <tr>
         <td>
-            <code>OrElsePanic(v any)</code><br>
-            if the value is not present, panics with the supplied value, otherwise does nothing
+            <code>UnSet()</code><br>
+            clears the set flag (see <code>WasSet()</code>)<br>
+            <em>returns the original optional</em>
         </td>
-        <td><em>nothing</em></td>
-    </tr>
-    <tr>
-        <td>
-            <code>Filter(f func(v T) bool)</code><br>
-            if the value is present and calling the supplied filter function returns true, returns a new optional describing the value<br>
-            Otherwise returns an empty optional
-        </td>
-        <td><code>Optional[T]</code></td>
-    </tr>
-    <tr>
-        <td>
-            <code>Map(f func(v T) any)</code><br>
-            if the value is present and the result of calling the supplied mapping function returns non-nil, returns
-            an optional describing that returned value<br>
-            Otherwise returns an empty optional
-        </td>
-        <td><code>Optional[any]</code></td>
-    </tr>
-    <tr>
-        <td>
-            <code>MarshalJSON()</code><br>
-            implements JSON marshal<br>
-            if the value is present, returns the marshalled data for the value<br>
-            Otherwise, returns the marshalled data for null
-        </td>
-        <td><code>([]byte, error)</code></td>
+        <td><code>*Optional[T]</code></td>
     </tr>
     <tr>
         <td>
@@ -282,23 +299,48 @@ func main() {
     </tr>
     <tr>
         <td>
-            <code>Scan(value interface{})</code><br>
-            implements sql.Scan
+            <code>WasSet()</code><br>
+            returns true if the last setting operation set the value, otherwise false<br>
+            Setting operations are <code>UnmarshalJSON()</code>, <code>Scan()</code> and <code>OrElseSet()</code><br>
+            Use method <code>UnSet()</code> to clear this flag alone
+        </td>
+        <td><code>bool</code></td>
+    </tr>
+    <tr>
+        <td>
+            <code>WasSetElse(other T)</code><br>
+            returns the value if present and set, otherwise returns other
+        </td>
+        <td><code>T</code></td>
+    </tr>
+    <tr>
+        <td>
+            <code>WasSetElseError(err error)</code><br>
+            returns the supplied error if the value is not present and set, otherwise returns nil<br>
+            if the supplied error is nil and the value is not present and set, a <code>NotPresentError</code> is returned
         </td>
         <td><code>error</code></td>
     </tr>
     <tr>
         <td>
-            <code>Clear()</code><br>
-            clears the optional<br>
-            Clearing sets the present to false, the set flag to false and the value to an empty value
+            <code>WasSetElseGet(f func() T)</code><br>
+            returns the value if present and set, otherwise returns the result of calling the supplied function<br>
+            if the supplied function is nil and the value is not present and set, returns a default empty value
+        </td>
+        <td><code>T</code></td>
+    </tr>
+    <tr>
+        <td>
+            <code>WasSetElsePanic(v any)</code><br>
+            if the value is not present and set, panics with the supplied value, otherwise does nothing<br>
+            <em>returns the original optional</em>
         </td>
         <td><code>*Optional[T]</code></td>
     </tr>
     <tr>
         <td>
-            <code>UnSet()</code><br>
-            clears the set flag (see <code>WasSet()</code>)
+            <code>WasSetElseSet(v T)</code><br>
+            if the value is not present and set it is set to the value supplied
         </td>
         <td><code>*Optional[T]</code></td>
     </tr>
@@ -311,129 +353,129 @@ func main() {
     </tr>
     <tr>
         <td>
-            <code>Of[T any](value T) Optional[T]</code><br>
+            <code>Of[T any](value T) *Optional[T]</code><br>
             Creates a new optional with the supplied value
         </td>
     </tr>
     <tr>
         <td>
-            <code>OfNillable[T any](value T) Optional[T]</code><br>
+            <code>OfNillable[T any](value T) *Optional[T]</code><br>
             Creates a new optional with the supplied value<br>
             If the supplied value is nil, an empty (not present) optional is returned
         </td>
     </tr>
     <tr>
         <td>
-            <code>OfNillableString(value string) Optional[string]</code><br>
+            <code>OfNillableString(value string) *Optional[string]</code><br>
             Creates a new string optional with the supplied value<br>
             If the supplied value is an empty string, an empty (not-present) optional is returned
         </td>
     </tr>
     <tr>
         <td>
-            <code>Empty[T any]() Optional[T]</code><br>
+            <code>Empty[T any]() *Optional[T]</code><br>
             Creates a new empty (not-present) optional of the specified type
         </td>
     </tr>
     <tr>
         <td>
-            <code>EmptyString() Optional[string]</code><br>
+            <code>EmptyString() *Optional[string]</code><br>
             returns an empty optional of type <code>string</code>
         </td>
     </tr>
     <tr>
         <td>
-            <code>EmptyInterface() Optional[interface{}]</code><br>
+            <code>EmptyInterface() *Optional[interface{}]</code><br>
             returns an empty optional of type <code>interface{}</code>
         </td>
     </tr>
     <tr>
         <td>
-            <code>EmptyInt() Optional[int]</code><br>
+            <code>EmptyInt() *Optional[int]</code><br>
             returns an empty optional of type <code>int</code>
         </td>
     </tr>
     <tr>
         <td>
-            <code>EmptyInt8() Optional[int8]</code><br>
+            <code>EmptyInt8() *Optional[int8]</code><br>
 7            returns an empty optional of type <code>int8</code>
         </td>
     </tr>
     <tr>
         <td>
-            <code>EmptyInt16() Optional[int16]</code><br>
+            <code>EmptyInt16() *Optional[int16]</code><br>
             returns an empty optional of type <code>int16</code>
         </td>
     </tr>
     <tr>
         <td>
-            <code>EmptyInt32() Optional[int32]</code><br>
+            <code>EmptyInt32() *Optional[int32]</code><br>
             returns an empty optional of type <code>int32</code>
         </td>
     </tr>
     <tr>
         <td>
-            <code>EmptyInt64() Optional[int64]</code><br>
+            <code>EmptyInt64() *Optional[int64]</code><br>
             returns an empty optional of type <code>int64</code>
         </td>
     </tr>
     <tr>
         <td>
-            <code>EmptyUint() Optional[uint]</code><br>
+            <code>EmptyUint() *Optional[uint]</code><br>
             returns an empty optional of type <code>uint</code>
         </td>
     </tr>
     <tr>
         <td>
-            <code>EmptyUint8() Optional[uint8]</code><br>
+            <code>EmptyUint8() *Optional[uint8]</code><br>
             returns an empty optional of type <code>uint8</code>
         </td>
     </tr>
     <tr>
         <td>
-            <code>EmptyUint16() Optional[uint16]</code><br>
+            <code>EmptyUint16() *Optional[uint16]</code><br>
             returns an empty optional of type <code>uint16</code>
         </td>
     </tr>
     <tr>
         <td>
-            <code>EmptyUint32() Optional[uint32]</code><br>
+            <code>EmptyUint32() *Optional[uint32]</code><br>
             returns an empty optional of type <code>uint32</code>
         </td>
     </tr>
     <tr>
         <td>
-            <code>func EmptyUint64() Optional[uint64]</code><br>
+            <code>func EmptyUint64() *Optional[uint64]</code><br>
             returns an empty optional of type <code>uint64</code>
         </td>
     </tr>
     <tr>
         <td>
-            <code>EmptyBool() Optional[bool]</code><br>
+            <code>EmptyBool() *Optional[bool]</code><br>
             returns an empty optional of type <code>bool</code>
         </td>
     </tr>
     <tr>
         <td>
-            <code>EmptyFloat32() Optional[float32]</code><br>
+            <code>EmptyFloat32() *Optional[float32]</code><br>
             returns an empty optional of type <code>float32</code>
         </td>
     </tr>
     <tr>
         <td>
-            <code>EmptyFloat64() Optional[float64]</code><br>
+            <code>EmptyFloat64() *Optional[float64]</code><br>
             returns an empty optional of type <code>float64</code>
         </td>
     </tr>
     <tr>
         <td>
-            <code>EmptyByte() Optional[byte]</code><br>
+            <code>EmptyByte() *Optional[byte]</code><br>
             returns an empty optional of type <code>byte</code>
         </td>
     </tr>
     <tr>
         <td>
-            <code>EmptyRune() Optional[rune]</code><br>
+            <code>EmptyRune() *Optional[rune]</code><br>
             returns an empty optional of type <code>rune</code>
         </td>
     </tr>
