@@ -76,11 +76,63 @@ func TestOf(t *testing.T) {
 	require.False(t, opt3.IsPresent())
 }
 
-func TestOptional_IsPresent(t *testing.T) {
-	o := Of("aaa")
+func TestOptional_AsEmpty(t *testing.T) {
+	o := Of("abc")
 	require.True(t, o.IsPresent())
-	o = Empty[string]()
+	oe := o.AsEmpty()
+	require.False(t, oe.IsPresent())
+
+	o2 := Of(0)
+	require.True(t, o2.IsPresent())
+	oe2 := o.AsEmpty()
+	require.False(t, oe2.IsPresent())
+}
+
+func TestOptional_Clear(t *testing.T) {
+	o := EmptyString()
 	require.False(t, o.IsPresent())
+	require.False(t, o.WasSet())
+	v, err := o.Get()
+	require.Error(t, err)
+	require.Equal(t, "", v)
+
+	o.OrElseSet("foo")
+	require.True(t, o.IsPresent())
+	require.True(t, o.WasSet())
+	v, err = o.Get()
+	require.NoError(t, err)
+	require.Equal(t, "foo", v)
+
+	o.Clear()
+	require.False(t, o.IsPresent())
+	require.False(t, o.WasSet())
+	v, err = o.Get()
+	require.Error(t, err)
+	require.Equal(t, "", v)
+}
+
+func TestOptional_Filter(t *testing.T) {
+	o := Empty[string]()
+	called := false
+	filterOk := true
+	f := func(v string) bool {
+		called = true
+		return filterOk
+	}
+	o2 := o.Filter(f)
+	require.False(t, called)
+	require.False(t, o2.IsPresent())
+
+	o = Of("aaa")
+	o2 = o.Filter(f)
+	require.True(t, called)
+	require.True(t, o2.IsPresent())
+
+	called = false
+	filterOk = false
+	o2 = o.Filter(f)
+	require.True(t, called)
+	require.False(t, o2.IsPresent())
 }
 
 func TestOptional_Get(t *testing.T) {
@@ -107,27 +159,22 @@ func TestOptional_GetOk(t *testing.T) {
 	require.Equal(t, "aaa", v)
 }
 
-func TestOptional_Clear(t *testing.T) {
-	o := EmptyString()
-	require.False(t, o.IsPresent())
-	require.False(t, o.WasSet())
-	v, err := o.Get()
-	require.Error(t, err)
-	require.Equal(t, "", v)
+func TestOptional_IfElse(t *testing.T) {
+	o := Empty[string]()
+	v := o.IfElse(true, "abc")
+	require.Equal(t, "abc", v)
 
-	o.OrElseSet("foo")
-	require.True(t, o.IsPresent())
-	require.True(t, o.WasSet())
-	v, err = o.Get()
+	o = Of("xyz")
+	v = o.IfElse(false, "abc")
+	require.Equal(t, "abc", v)
+	v = o.IfElse(true, "abc")
+	require.Equal(t, "xyz", v)
+	v = o.IfElse(o.WasSet(), "abc")
+	require.Equal(t, "abc", v)
+	err := o.Scan("scanned")
 	require.NoError(t, err)
-	require.Equal(t, "foo", v)
-
-	o.Clear()
-	require.False(t, o.IsPresent())
-	require.False(t, o.WasSet())
-	v, err = o.Get()
-	require.Error(t, err)
-	require.Equal(t, "", v)
+	v = o.IfElse(o.WasSet(), "abc")
+	require.Equal(t, "scanned", v)
 }
 
 func TestOptional_IfPresent(t *testing.T) {
@@ -251,119 +298,11 @@ func TestOptional_IfSetOtherwise(t *testing.T) {
 	require.False(t, otherCalled)
 }
 
-func TestOptional_IfElse(t *testing.T) {
-	o := Empty[string]()
-	v := o.IfElse(true, "abc")
-	require.Equal(t, "abc", v)
-
-	o = Of("xyz")
-	v = o.IfElse(false, "abc")
-	require.Equal(t, "abc", v)
-	v = o.IfElse(true, "abc")
-	require.Equal(t, "xyz", v)
-	v = o.IfElse(o.WasSet(), "abc")
-	require.Equal(t, "abc", v)
-	err := o.Scan("scanned")
-	require.NoError(t, err)
-	v = o.IfElse(o.WasSet(), "abc")
-	require.Equal(t, "scanned", v)
-}
-
-func TestOptional_OrElse(t *testing.T) {
-	o := Empty[string]()
-	v := o.OrElse("bbb")
-	require.Equal(t, "bbb", v)
-
-	o = Of("aaa")
-	v = o.OrElse("bbb")
-	require.Equal(t, "aaa", v)
-}
-
-func TestOptional_OrElseGet(t *testing.T) {
-	o := Empty[string]()
-	called := false
-	f := func() string {
-		called = true
-		return "aaa"
-	}
-	v := o.OrElseGet(f)
-	require.Equal(t, "aaa", v)
-	require.True(t, called)
-
-	called = false
-	o = Of("bbb")
-	v = o.OrElseGet(f)
-	require.Equal(t, "bbb", v)
-	require.False(t, called)
-
-	o = Empty[string]()
-	var ef func() string
-	v = o.OrElseGet(ef)
-	require.Equal(t, "", v)
-}
-
-func TestOptional_OrElseSet(t *testing.T) {
-	o := Empty[map[string]interface{}]()
-	require.False(t, o.IsPresent())
-
-	o2 := o.OrElseSet(map[string]interface{}{})
-	require.Equal(t, &o, o2)
-	require.True(t, o2.IsPresent())
+func TestOptional_IsPresent(t *testing.T) {
+	o := Of("aaa")
 	require.True(t, o.IsPresent())
-
-	o = Empty[map[string]interface{}]()
-	require.False(t, o.IsPresent())
-	o2 = o.OrElseSet(nil)
-	require.Equal(t, &o, o2)
-	require.False(t, o2.IsPresent())
-	require.False(t, o.IsPresent())
-}
-
-func TestOptional_OrElseError(t *testing.T) {
-	o := Empty[string]()
-	err := o.OrElseError(errors.New("not there"))
-	require.Error(t, err)
-	require.Equal(t, "not there", err.Error())
-
-	err = o.OrElseError(nil)
-	require.Equal(t, NotPresent, err)
-
-	o = Of("abc")
-	err = o.OrElseError(errors.New("not there"))
-	require.NoError(t, err)
-}
-
-func TestOptional_OrElsePanic(t *testing.T) {
-	o := Of("str")
-	o.OrElsePanic("whoops")
 	o = Empty[string]()
-	require.Panics(t, func() {
-		o.OrElsePanic("whoops")
-	})
-}
-
-func TestOptional_Filter(t *testing.T) {
-	o := Empty[string]()
-	called := false
-	filterOk := true
-	f := func(v string) bool {
-		called = true
-		return filterOk
-	}
-	o2 := o.Filter(f)
-	require.False(t, called)
-	require.False(t, o2.IsPresent())
-
-	o = Of("aaa")
-	o2 = o.Filter(f)
-	require.True(t, called)
-	require.True(t, o2.IsPresent())
-
-	called = false
-	filterOk = false
-	o2 = o.Filter(f)
-	require.True(t, called)
-	require.False(t, o2.IsPresent())
+	require.False(t, o.IsPresent())
 }
 
 func TestOptional_Map(t *testing.T) {
@@ -398,9 +337,9 @@ func TestOptional_MarshalUnmarshalJSON(t *testing.T) {
 		Baz Optional[float64] `json:"baz"`
 	}
 	myA := &aStruct{
-		Foo: Of("aaa"),
-		Bar: Of(1),
-		Baz: Of(1.2),
+		Foo: *Of("aaa"),
+		Bar: *Of(1),
+		Baz: *Of(1.2),
 	}
 	data, err := json.Marshal(myA)
 	require.NoError(t, err)
@@ -453,6 +392,79 @@ func TestOptional_MarshalUnmarshalJSON(t *testing.T) {
 	str = `{"foo":1.2,"bar":null,"baz":null}`
 	err = json.Unmarshal([]byte(str), myA3)
 	require.Error(t, err)
+}
+
+func TestOptional_OrElse(t *testing.T) {
+	o := Empty[string]()
+	v := o.OrElse("bbb")
+	require.Equal(t, "bbb", v)
+
+	o = Of("aaa")
+	v = o.OrElse("bbb")
+	require.Equal(t, "aaa", v)
+}
+
+func TestOptional_OrElseGet(t *testing.T) {
+	o := Empty[string]()
+	called := false
+	f := func() string {
+		called = true
+		return "aaa"
+	}
+	v := o.OrElseGet(f)
+	require.Equal(t, "aaa", v)
+	require.True(t, called)
+
+	called = false
+	o = Of("bbb")
+	v = o.OrElseGet(f)
+	require.Equal(t, "bbb", v)
+	require.False(t, called)
+
+	o = Empty[string]()
+	var ef func() string
+	v = o.OrElseGet(ef)
+	require.Equal(t, "", v)
+}
+
+func TestOptional_OrElseError(t *testing.T) {
+	o := Empty[string]()
+	err := o.OrElseError(errors.New("not there"))
+	require.Error(t, err)
+	require.Equal(t, "not there", err.Error())
+
+	err = o.OrElseError(nil)
+	require.Equal(t, NotPresent, err)
+
+	o = Of("abc")
+	err = o.OrElseError(errors.New("not there"))
+	require.NoError(t, err)
+}
+
+func TestOptional_OrElsePanic(t *testing.T) {
+	o := Of("str")
+	o.OrElsePanic("whoops")
+	o = Empty[string]()
+	require.Panics(t, func() {
+		o.OrElsePanic("whoops")
+	})
+}
+
+func TestOptional_OrElseSet(t *testing.T) {
+	o := Empty[map[string]interface{}]()
+	require.False(t, o.IsPresent())
+
+	o2 := o.OrElseSet(map[string]interface{}{})
+	require.Equal(t, o, o2)
+	require.True(t, o2.IsPresent())
+	require.True(t, o.IsPresent())
+
+	o = Empty[map[string]interface{}]()
+	require.False(t, o.IsPresent())
+	o2 = o.OrElseSet(nil)
+	require.Equal(t, o, o2)
+	require.False(t, o2.IsPresent())
+	require.False(t, o.IsPresent())
 }
 
 func TestOptional_Scan(t *testing.T) {
@@ -522,6 +534,118 @@ func TestOptional_Scan(t *testing.T) {
 	require.True(t, o5.WasSet())
 }
 
+func TestOptional_UnSet(t *testing.T) {
+	o := Of("abc")
+	require.True(t, o.IsPresent())
+	require.False(t, o.WasSet())
+	err := o.Scan("xyz")
+	require.NoError(t, err)
+	require.True(t, o.WasSet())
+	o.UnSet()
+	require.False(t, o.WasSet())
+}
+
+func TestOptional_WasSet(t *testing.T) {
+	o := Of("abc")
+	require.True(t, o.IsPresent())
+	require.False(t, o.WasSet())
+
+	err := o.Scan("xyz")
+	require.NoError(t, err)
+	require.True(t, o.WasSet())
+}
+
+func TestOptional_WasSetElse(t *testing.T) {
+	o := Of("abc")
+	require.True(t, o.IsPresent())
+	require.False(t, o.WasSet())
+	v := o.WasSetElse("def")
+	require.Equal(t, "def", v)
+	err := o.Scan("xyz")
+	require.NoError(t, err)
+	v = o.WasSetElse("def")
+	require.Equal(t, "xyz", v)
+}
+
+func TestOptional_WasSetElseError(t *testing.T) {
+	o := Of("abc")
+	require.True(t, o.IsPresent())
+	require.False(t, o.WasSet())
+	err := o.WasSetElseError(errors.New("fooey"))
+	require.Error(t, err)
+	require.Equal(t, "fooey", err.Error())
+	err = o.WasSetElseError(nil)
+	require.Error(t, err)
+	require.Equal(t, NotPresent, err)
+	err = o.Scan("xyz")
+	require.NoError(t, err)
+	err = o.WasSetElseError(errors.New("fooey"))
+	require.NoError(t, err)
+}
+
+func TestOptional_WasSetElseGet(t *testing.T) {
+	o := Of("abc")
+	require.True(t, o.IsPresent())
+	require.False(t, o.WasSet())
+	called := false
+	f := func() string {
+		called = true
+		return "aaa"
+	}
+	v := o.WasSetElseGet(f)
+	require.True(t, called)
+	require.Equal(t, "aaa", v)
+
+	called = false
+	v = o.WasSetElseGet(nil)
+	require.False(t, called)
+	require.Equal(t, "", v)
+
+	called = false
+	err := o.Scan("xyz")
+	require.NoError(t, err)
+	v = o.WasSetElseGet(f)
+	require.False(t, called)
+	require.Equal(t, "xyz", v)
+}
+
+func TestOptional_WasSetElsePanic(t *testing.T) {
+	o := Of("abc")
+	require.True(t, o.IsPresent())
+	require.False(t, o.WasSet())
+	require.Panics(t, func() {
+		o.WasSetElsePanic("fooey")
+	})
+	err := o.Scan("xyz")
+	require.NoError(t, err)
+	o = o.WasSetElsePanic("fooey")
+	require.True(t, o.IsPresent())
+	require.True(t, o.WasSet())
+}
+
+func TestOptional_WasSetElseSet(t *testing.T) {
+	o := Of("abc")
+	require.True(t, o.IsPresent())
+	require.False(t, o.WasSet())
+	v, err := o.Get()
+	require.NoError(t, err)
+	require.Equal(t, "abc", v)
+	o2 := o.WasSetElseSet("xyz")
+	require.True(t, o2.IsPresent())
+	require.True(t, o2.WasSet())
+	v, err = o2.Get()
+	require.NoError(t, err)
+	require.Equal(t, "xyz", v)
+
+	my := &scannable{}
+	o3 := Of(my)
+	require.True(t, o3.IsPresent())
+	require.False(t, o3.WasSet())
+	o4 := o3.WasSetElseSet(nil)
+	require.False(t, o4.IsPresent())
+	require.True(t, o4.WasSet())
+}
+
 type scannable struct {
 	called bool
 	err    error
@@ -532,36 +656,6 @@ func (s *scannable) Scan(src any) error {
 	s.called = true
 	s.value = src
 	return s.err
-}
-
-func TestChainCalls(t *testing.T) {
-	type myStruct struct {
-		Foo Optional[string]
-	}
-	my := &myStruct{}
-	require.False(t, my.Foo.IsPresent())
-	require.False(t, my.Foo.WasSet())
-
-	was := my.Foo.Clear().UnSet().OrElseSet("abc").WasSet()
-	require.True(t, was)
-	require.True(t, my.Foo.WasSet())
-	require.True(t, my.Foo.IsPresent())
-	v, ok := my.Foo.GetOk()
-	require.True(t, ok)
-	require.Equal(t, "abc", v)
-
-	o := EmptyString()
-	was = o.Clear().WasSet()
-	require.False(t, was)
-	require.False(t, o.WasSet())
-	require.False(t, o.IsPresent())
-	was = o.Clear().UnSet().OrElseSet("abc").WasSet()
-	require.True(t, was)
-	require.True(t, o.WasSet())
-	require.True(t, o.IsPresent())
-	v, ok = o.GetOk()
-	require.True(t, ok)
-	require.Equal(t, "abc", v)
 }
 
 func TestEmpties(t *testing.T) {
