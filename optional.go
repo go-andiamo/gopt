@@ -110,6 +110,14 @@ func (o *Optional[T]) Get() (T, error) {
 	return o.value, nil
 }
 
+// Default returns the value if present, otherwise returns the defaulted value
+func (o *Optional[T]) Default(v T) T {
+	if !o.present {
+		return v
+	}
+	return o.value
+}
+
 // GetOk returns the value and true if the value is present
 //
 // otherwise returns an empty value and false
@@ -516,4 +524,12 @@ func EmptyByte() *Optional[byte] {
 // EmptyRune returns an empty optional of type rune
 func EmptyRune() *Optional[rune] {
 	return Empty[rune]()
+}
+
+// Map obtains an optional from a map - if the key is present (and the value is non-nil) then an optional with the value is returned, otherwise an empty optional is returned
+func Map[K comparable, T any](m map[K]T, key K) *Optional[T] {
+	if v, ok := m[key]; ok && isPresent(v) {
+		return Of(v)
+	}
+	return Empty[T]()
 }
