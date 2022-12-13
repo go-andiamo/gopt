@@ -646,6 +646,68 @@ func TestOptional_WasSetElseSet(t *testing.T) {
 	require.True(t, o4.WasSet())
 }
 
+func TestOptional_Default(t *testing.T) {
+	o1 := Empty[string]()
+	v1 := o1.Default("foo")
+	require.Equal(t, "foo", v1)
+	o1 = Of("bar")
+	v1 = o1.Default("foo")
+	require.Equal(t, "bar", v1)
+
+	o2 := Empty[int]()
+	v2 := o2.Default(1)
+	require.Equal(t, 1, v2)
+	o2 = Of(2)
+	v2 = o2.Default(0)
+	require.Equal(t, 2, v2)
+
+	o3 := Empty[myStruct]()
+	v3 := o3.Default(myStruct{})
+	require.Equal(t, "", v3.Foo)
+	o3 = Of(myStruct{
+		Foo: "bar",
+	})
+	v3 = o3.Default(myStruct{})
+	require.Equal(t, "bar", v3.Foo)
+
+	o4 := Empty[*myStruct]()
+	v4 := o4.Default(nil)
+	require.Nil(t, v4)
+	o4 = Of(&myStruct{
+		Foo: "bar",
+	})
+	v4 = o4.Default(&myStruct{})
+	require.NotNil(t, v4)
+	require.Equal(t, "bar", v4.Foo)
+}
+
+func TestMap(t *testing.T) {
+	m := map[string]interface{}{
+		"foo": "foo value",
+		"bar": 1,
+	}
+	o := Map(m, "foo")
+	require.True(t, o.IsPresent())
+	require.Equal(t, "foo value", o.OrElse(nil))
+	o = Map(m, "bar")
+	require.True(t, o.IsPresent())
+	require.Equal(t, 1, o.OrElse(nil))
+	o = Map(m, "baz")
+	require.False(t, o.IsPresent())
+	require.Equal(t, "", o.OrElse(""))
+
+	m2 := map[int]*myStruct{
+		1: {},
+		2: nil,
+	}
+	o2 := Map(m2, 1)
+	require.True(t, o2.IsPresent())
+	o2 = Map(m2, 2)
+	require.False(t, o2.IsPresent())
+	o2 = Map(m2, 3)
+	require.False(t, o2.IsPresent())
+}
+
 type scannable struct {
 	called bool
 	err    error
