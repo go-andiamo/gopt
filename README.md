@@ -129,6 +129,7 @@ func main() {
         <th>Method and description</th>
         <th>Returns</th>
     </tr>
+    <tr></tr>
     <tr>
         <td>
             <code>AsEmpty()</code><br>
@@ -136,6 +137,7 @@ func main() {
         </td>
         <td><code>*Optional[T]</code></td>
     </tr>
+    <tr></tr>
     <tr>
         <td>
             <code>Clear()</code><br>
@@ -144,6 +146,15 @@ func main() {
         </td>
         <td><code>*Optional[T]</code></td>
     </tr>
+    <tr></tr>
+    <tr>
+        <td>
+            <code>Default(v T)</code><br>
+            returns the value if present, otherwise returns the provided default value
+        </td>
+        <td><code>T</code></td>
+    </tr>
+    <tr></tr>
     <tr>
         <td>
             <code>Filter(f func(v T) bool)</code><br>
@@ -152,6 +163,7 @@ func main() {
         </td>
         <td><code>*Optional[T]</code></td>
     </tr>
+    <tr></tr>
     <tr>
         <td>
             <code>Get()</code><br>
@@ -159,6 +171,7 @@ func main() {
         </td>
         <td><code>(T, error)</code></td>
     </tr>
+    <tr></tr>
     <tr>
         <td>
             <code>GetOk()</code><br>
@@ -167,6 +180,7 @@ func main() {
         </td>
         <td><code>(T, bool)</code></td>
     </tr>
+    <tr></tr>
     <tr>
         <td>
             <code>IfElse(condition bool, other T)</code><br>
@@ -175,6 +189,7 @@ func main() {
         </td>
         <td><code>T</code></td>
     </tr>
+    <tr></tr>
     <tr>
         <td>
             <code>IfPresent(f func(v T))</code><br>
@@ -183,6 +198,7 @@ func main() {
         </td>
         <td><code>*Optional[T]</code></td>
     </tr>
+    <tr></tr>
     <tr>
         <td>
             <code>IfPresentOtherwise(f func(v T), other func())</code><br>
@@ -191,6 +207,7 @@ func main() {
         </td>
         <td><code><code>*Optional[T]</code></code></td>
     </tr>
+    <tr></tr>
     <tr>
         <td>
             <code>IfSet(f func(v T), notPresent func())</code><br>
@@ -201,6 +218,7 @@ func main() {
         </td>
         <td><code>*Optional[T]</code></td>
     </tr>
+    <tr></tr>
     <tr>
         <td>
             <code>IfSetOtherwise(f func(v T), notPresent func(), other func())</code><br>
@@ -211,6 +229,7 @@ func main() {
         </td>
         <td><code><code>*Optional[T]</code></code></td>
     </tr>
+    <tr></tr>
     <tr>
         <td>
             <code>IsPresent()</code><br>
@@ -218,6 +237,7 @@ func main() {
         </td>
         <td><code>bool</code></td>
     </tr>
+    <tr></tr>
     <tr>
         <td>
             <code>Map(f func(v T) any)</code><br>
@@ -227,6 +247,7 @@ func main() {
         </td>
         <td><code>*Optional[any]</code></td>
     </tr>
+    <tr></tr>
     <tr>
         <td>
             <code>MarshalJSON()</code><br>
@@ -236,6 +257,7 @@ func main() {
         </td>
         <td><code>([]byte, error)</code></td>
     </tr>
+    <tr></tr>
     <tr>
         <td>
             <code>OrElse(other T)</code><br>
@@ -243,6 +265,7 @@ func main() {
         </td>
         <td><code>T</code></td>
     </tr>
+    <tr></tr>
     <tr>
         <td>
             <code>OrElseError(err error)</code><br>
@@ -250,6 +273,7 @@ func main() {
         </td>
         <td><code>error</code></td>
     </tr>
+    <tr></tr>
     <tr>
         <td>
             <code>OrElseGet(f func() T)</code><br>
@@ -257,6 +281,7 @@ func main() {
         </td>
         <td><code>T</code></td>
     </tr>
+    <tr></tr>
     <tr>
         <td>
             <code>OrElsePanic(v any)</code><br>
@@ -265,6 +290,7 @@ func main() {
         </td>
         <td><code>*Optional[T]</code></td>
     </tr>
+    <tr></tr>
     <tr>
         <td>
             <code>OrElseSet(v T)</code><br>
@@ -272,6 +298,7 @@ func main() {
         </td>
         <td><code>*Optional[T]</code></td>
     </tr>
+    <tr></tr>
     <tr>
         <td>
             <code>Scan(value interface{})</code><br>
@@ -279,6 +306,7 @@ func main() {
         </td>
         <td><code>error</code></td>
     </tr>
+    <tr></tr>
     <tr>
         <td>
             <code>UnSet()</code><br>
@@ -287,6 +315,7 @@ func main() {
         </td>
         <td><code>*Optional[T]</code></td>
     </tr>
+    <tr></tr>
     <tr>
         <td>
             <code>UnmarshalJSON(data []byte)</code><br>
@@ -297,6 +326,7 @@ func main() {
         </td>
         <td><code>error</code></td>
     </tr>
+    <tr></tr>
     <tr>
         <td>
             <code>WasSet()</code><br>
@@ -306,6 +336,7 @@ func main() {
         </td>
         <td><code>bool</code></td>
     </tr>
+    <tr></tr>
     <tr>
         <td>
             <code>WasSetElse(other T)</code><br>
@@ -313,6 +344,7 @@ func main() {
         </td>
         <td><code>T</code></td>
     </tr>
+    <tr></tr>
     <tr>
         <td>
             <code>WasSetElseError(err error)</code><br>
@@ -321,6 +353,7 @@ func main() {
         </td>
         <td><code>error</code></td>
     </tr>
+    <tr></tr>
     <tr>
         <td>
             <code>WasSetElseGet(f func() T)</code><br>
@@ -329,6 +362,7 @@ func main() {
         </td>
         <td><code>T</code></td>
     </tr>
+    <tr></tr>
     <tr>
         <td>
             <code>WasSetElsePanic(v any)</code><br>
@@ -337,6 +371,7 @@ func main() {
         </td>
         <td><code>*Optional[T]</code></td>
     </tr>
+    <tr></tr>
     <tr>
         <td>
             <code>WasSetElseSet(v T)</code><br>
@@ -398,7 +433,7 @@ func main() {
     <tr>
         <td>
             <code>EmptyInt8() *Optional[int8]</code><br>
-7            returns an empty optional of type <code>int8</code>
+            returns an empty optional of type <code>int8</code>
         </td>
     </tr>
     <tr>

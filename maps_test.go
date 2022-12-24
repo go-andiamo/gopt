@@ -3,7 +3,106 @@ package gopt
 import (
 	"github.com/stretchr/testify/require"
 	"testing"
+	"time"
 )
+
+func TestExtract(t *testing.T) {
+	m := map[string]interface{}{
+		"str":  "Str",
+		"int":  16,
+		"time": time.Now(),
+	}
+
+	s := Extract[string, string](m, "str")
+	require.True(t, s.IsPresent())
+	require.Equal(t, "Str", s.OrElse(""))
+
+	s = Extract[string, string](m, "int")
+	require.False(t, s.IsPresent())
+
+	i := Extract[string, int](m, "str")
+	require.False(t, i.IsPresent())
+
+	i = Extract[string, int](m, "int")
+	require.True(t, i.IsPresent())
+	require.Equal(t, 16, i.OrElse(0))
+
+	dt := Extract[string, time.Time](m, "time")
+	require.True(t, dt.IsPresent())
+
+	dt = Extract[string, time.Time](m, "str")
+	require.False(t, dt.IsPresent())
+
+	m2 := map[int]interface{}{
+		1: "Str",
+		2: 16,
+	}
+	s = Extract[int, string](m2, 1)
+	require.True(t, s.IsPresent())
+	require.Equal(t, "Str", s.OrElse(""))
+	s = Extract[int, string](m2, 2)
+	require.False(t, s.IsPresent())
+	i = Extract[int, int](m2, 2)
+	require.True(t, i.IsPresent())
+	require.Equal(t, 16, i.OrElse(0))
+	i = Extract[int, int](m2, 1)
+	require.False(t, i.IsPresent())
+}
+
+func TestExtractJson(t *testing.T) {
+	m := map[string]interface{}{
+		"str":  "Str",
+		"int":  16,
+		"time": time.Now(),
+	}
+
+	s := ExtractJson[string](m, "str")
+	require.True(t, s.IsPresent())
+	require.Equal(t, "Str", s.OrElse(""))
+
+	s = ExtractJson[string](m, "int")
+	require.False(t, s.IsPresent())
+
+	i := ExtractJson[int](m, "str")
+	require.False(t, i.IsPresent())
+
+	i = ExtractJson[int](m, "int")
+	require.True(t, i.IsPresent())
+	require.Equal(t, 16, i.OrElse(0))
+
+	dt := ExtractJson[time.Time](m, "time")
+	require.True(t, dt.IsPresent())
+
+	dt = ExtractJson[time.Time](m, "str")
+	require.False(t, dt.IsPresent())
+}
+
+func TestGet(t *testing.T) {
+	m := map[string]interface{}{
+		"foo": "foo value",
+		"bar": 1,
+	}
+	o := Get(m, "foo")
+	require.True(t, o.IsPresent())
+	require.Equal(t, "foo value", o.OrElse(nil))
+	o = Get(m, "bar")
+	require.True(t, o.IsPresent())
+	require.Equal(t, 1, o.OrElse(nil))
+	o = Get(m, "baz")
+	require.False(t, o.IsPresent())
+	require.Equal(t, "", o.OrElse(""))
+
+	m2 := map[int]*myStruct{
+		1: {},
+		2: nil,
+	}
+	o2 := Get(m2, 1)
+	require.True(t, o2.IsPresent())
+	o2 = Get(m2, 2)
+	require.False(t, o2.IsPresent())
+	o2 = Get(m2, 3)
+	require.False(t, o2.IsPresent())
+}
 
 func TestOptMap_Get(t *testing.T) {
 	m := map[string]interface{}{
@@ -19,7 +118,64 @@ func TestOptMap_Get(t *testing.T) {
 	require.False(t, ov.IsPresent())
 }
 
-func TestOptMap_GetOrDefault(t *testing.T) {
+func TestOptMap_IfPresent(t *testing.T) {
+	m := map[string]interface{}{
+		"foo": "foo value",
+		"bar": nil,
+	}
+	om := OptMap[string, interface{}](m)
+	called := false
+	f := func(key string, v interface{}) {
+		called = true
+	}
+	om.IfPresent("foo", f)
+	require.True(t, called)
+	called = false
+	om.IfPresent("bar", f)
+	require.False(t, called)
+	om.IfPresent("baz", f)
+	require.False(t, called)
+
+	om.IfPresent("bar", f).IfPresent("foo", f)
+	require.True(t, called)
+}
+
+func TestOptMap_IfPresentOtherwise(t *testing.T) {
+	m := map[string]interface{}{
+		"foo": "foo value",
+		"bar": nil,
+	}
+	om := OptMap[string, interface{}](m)
+	called := false
+	otherCalled := false
+	f := func(key string, v interface{}) {
+		called = true
+	}
+	other := func(key string) {
+		otherCalled = true
+	}
+	om.IfPresentOtherwise("foo", f, other)
+	require.True(t, called)
+	require.False(t, otherCalled)
+	called = false
+	otherCalled = false
+	om.IfPresentOtherwise("bar", f, other)
+	require.False(t, called)
+	require.True(t, otherCalled)
+	called = false
+	otherCalled = false
+	om.IfPresentOtherwise("baz", f, other)
+	require.False(t, called)
+	require.True(t, otherCalled)
+
+	called = false
+	otherCalled = false
+	om.IfPresentOtherwise("bar", f, other).IfPresentOtherwise("foo", f, other)
+	require.True(t, called)
+	require.True(t, otherCalled)
+}
+
+func TestOptMap_Default(t *testing.T) {
 	m := map[string]interface{}{
 		"foo": "foo value",
 		"bar": nil,

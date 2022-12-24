@@ -76,6 +76,38 @@ func TestOf(t *testing.T) {
 	require.False(t, opt3.IsPresent())
 }
 
+func TestMapTo(t *testing.T) {
+	o1 := Of[interface{}]("foo")
+	o2 := MapTo[string](o1)
+	require.True(t, o2.IsPresent())
+	require.Equal(t, "foo", o2.OrElse(""))
+
+	o1 = Of[interface{}](1)
+	o2 = MapTo[string](o1)
+	require.False(t, o2.IsPresent())
+}
+
+func TestConvertTo(t *testing.T) {
+	o1 := Of[interface{}]("foo")
+	o2 := ConvertTo[interface{}, string](o1, nil)
+	require.True(t, o2.IsPresent())
+	require.Equal(t, "foo", o2.OrElse(""))
+
+	o1 = Of[interface{}](16)
+	o2 = ConvertTo[interface{}, string](o1, nil)
+	require.False(t, o2.IsPresent())
+	f := func(v interface{}) *Optional[string] {
+		switch vt := v.(type) {
+		case int:
+			return Of(strconv.Itoa(vt))
+		}
+		return EmptyString()
+	}
+	o2 = ConvertTo[interface{}, string](o1, f)
+	require.True(t, o2.IsPresent())
+	require.Equal(t, "16", o2.OrElse(""))
+}
+
 func TestOptional_AsEmpty(t *testing.T) {
 	o := Of("abc")
 	require.True(t, o.IsPresent())
@@ -532,6 +564,15 @@ func TestOptional_Scan(t *testing.T) {
 	require.NoError(t, err)
 	require.False(t, o5.IsPresent())
 	require.True(t, o5.WasSet())
+
+	o6 := Empty[string]()
+	require.False(t, o6.IsPresent())
+	require.False(t, o6.WasSet())
+	err = o6.Scan([]uint8{'a', 'b', 'c'})
+	require.NoError(t, err)
+	require.True(t, o6.IsPresent())
+	require.True(t, o6.WasSet())
+	require.Equal(t, "abc", o6.OrElse(""))
 }
 
 func TestOptional_UnSet(t *testing.T) {
@@ -679,33 +720,6 @@ func TestOptional_Default(t *testing.T) {
 	v4 = o4.Default(&myStruct{})
 	require.NotNil(t, v4)
 	require.Equal(t, "bar", v4.Foo)
-}
-
-func TestMap(t *testing.T) {
-	m := map[string]interface{}{
-		"foo": "foo value",
-		"bar": 1,
-	}
-	o := Map(m, "foo")
-	require.True(t, o.IsPresent())
-	require.Equal(t, "foo value", o.OrElse(nil))
-	o = Map(m, "bar")
-	require.True(t, o.IsPresent())
-	require.Equal(t, 1, o.OrElse(nil))
-	o = Map(m, "baz")
-	require.False(t, o.IsPresent())
-	require.Equal(t, "", o.OrElse(""))
-
-	m2 := map[int]*myStruct{
-		1: {},
-		2: nil,
-	}
-	o2 := Map(m2, 1)
-	require.True(t, o2.IsPresent())
-	o2 = Map(m2, 2)
-	require.False(t, o2.IsPresent())
-	o2 = Map(m2, 3)
-	require.False(t, o2.IsPresent())
 }
 
 type scannable struct {
