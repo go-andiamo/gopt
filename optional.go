@@ -52,6 +52,30 @@ func Empty[T any]() *Optional[T] {
 	}
 }
 
+// MapTo maps the supplied optional to the specified type (if present and can can be converted) and returns an optional of the mapped value
+func MapTo[T any](o *Optional[any]) *Optional[T] {
+	if o != nil && o.present {
+		if v, ok := o.value.(T); ok {
+			return Of[T](v)
+		}
+	}
+	return Empty[T]()
+}
+
+// ConvertTo converts the supplied optional to the specified type (if present and can can be converted) and returns an optional of converted value
+//
+// If the present value cannot be converted, the supplied conversion function is called
+func ConvertTo[F any, T any](o *Optional[F], f func(v F) *Optional[T]) *Optional[T] {
+	if o != nil && o.present {
+		if v, ok := any(o.value).(T); ok {
+			return Of[T](v)
+		} else if f != nil {
+			return f(o.value)
+		}
+	}
+	return Empty[T]()
+}
+
 func isPresent(v any) bool {
 	vo := reflect.ValueOf(v)
 	switch vk := vo.Kind(); vk {
@@ -110,7 +134,7 @@ func (o *Optional[T]) Get() (T, error) {
 	return o.value, nil
 }
 
-// Default returns the value if present, otherwise returns the defaulted value
+// Default returns the value if present, otherwise returns the provided default value
 func (o *Optional[T]) Default(v T) T {
 	if !o.present {
 		return v
@@ -194,7 +218,7 @@ func (o *Optional[T]) IsPresent() bool {
 	return o.present
 }
 
-// Map if the value is present and the result of calling the supplied mapping function returns non-nil, returns
+// Get if the value is present and the result of calling the supplied mapping function returns non-nil, returns
 // an optional describing that returned value
 //
 // Otherwise returns an empty optional
@@ -290,18 +314,24 @@ func (o *Optional[T]) Scan(value interface{}) error {
 		return err
 	} else if bd, ok := value.([]byte); ok {
 		var uv T
-		if unErr := json.Unmarshal(bd, &uv); unErr == nil {
-			if isPresent(uv) {
-				o.present = true
-				o.value = uv
-			} else {
-				o.present = false
-				o.value = o.emptyValue()
-			}
+		if o.isString() {
+			o.present = true
 			o.set = true
+			o.value = any(string(bd)).(T)
 		} else {
-			o.clear(true)
-			return unErr
+			if unErr := json.Unmarshal(bd, &uv); unErr == nil {
+				if isPresent(uv) {
+					o.present = true
+					o.value = uv
+				} else {
+					o.present = false
+					o.value = o.emptyValue()
+				}
+				o.set = true
+			} else {
+				o.clear(true)
+				return unErr
+			}
 		}
 	} else {
 		o.clear(true)
@@ -415,6 +445,10 @@ func (o *Optional[T]) clear(set bool) {
 	o.set = set
 }
 
+func (o *Optional[T]) isString() bool {
+	return reflect.TypeOf(o.value).Kind() == reflect.String
+}
+
 func (o *Optional[T]) callScannable(value interface{}) (bool, error) {
 	var nv reflect.Value
 	if !isPresent(o.value) {
@@ -524,12 +558,4 @@ func EmptyByte() *Optional[byte] {
 // EmptyRune returns an empty optional of type rune
 func EmptyRune() *Optional[rune] {
 	return Empty[rune]()
-}
-
-// Map obtains an optional from a map - if the key is present (and the value is non-nil) then an optional with the value is returned, otherwise an empty optional is returned
-func Map[K comparable, T any](m map[K]T, key K) *Optional[T] {
-	if v, ok := m[key]; ok && isPresent(v) {
-		return Of(v)
-	}
-	return Empty[T]()
 }
