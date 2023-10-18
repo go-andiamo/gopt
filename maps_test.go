@@ -1,13 +1,15 @@
 package gopt
 
 import (
+	"encoding/json"
+	"fmt"
 	"github.com/stretchr/testify/require"
 	"testing"
 	"time"
 )
 
 func TestExtract(t *testing.T) {
-	m := map[string]interface{}{
+	m := map[string]any{
 		"str":  "Str",
 		"int":  16,
 		"time": time.Now(),
@@ -33,7 +35,7 @@ func TestExtract(t *testing.T) {
 	dt = Extract[string, time.Time](m, "str")
 	require.False(t, dt.IsPresent())
 
-	m2 := map[int]interface{}{
+	m2 := map[int]any{
 		1: "Str",
 		2: 16,
 	}
@@ -49,8 +51,60 @@ func TestExtract(t *testing.T) {
 	require.False(t, i.IsPresent())
 }
 
+func TestExtract_WithConverters(t *testing.T) {
+	m := map[string]any{
+		"int":  json.Number("16"),
+		"time": time.Now(),
+		"str":  "2023-10-18T13:00:00Z",
+	}
+
+	jnToInt := func(v any) (int, bool) {
+		switch vt := v.(type) {
+		case json.Number:
+			if v, err := vt.Int64(); err == nil {
+				return int(v), true
+			}
+		}
+		return 0, false
+	}
+	i := Extract[string, int](m, "int")
+	require.False(t, i.IsPresent())
+	i = Extract[string, int](m, "int", jnToInt)
+	require.True(t, i.IsPresent())
+
+	timeToStr := func(v any) (string, bool) {
+		switch vt := v.(type) {
+		case time.Time:
+			return vt.Format(time.RFC3339), true
+		}
+		return "", false
+	}
+	s := Extract[string, string](m, "time")
+	require.False(t, s.IsPresent())
+	s = Extract[string](m, "time", timeToStr)
+	require.True(t, s.IsPresent())
+
+	strToTime := func(v any) (time.Time, bool) {
+		switch vt := v.(type) {
+		case string:
+			if tv, err := time.Parse(time.RFC3339, vt); err == nil {
+				return tv, true
+			}
+		}
+		return time.Time{}, false
+	}
+	tm := Extract[string, time.Time](m, "str")
+	require.False(t, tm.IsPresent())
+	tm = Extract[string, time.Time](m, "time")
+	require.True(t, tm.IsPresent())
+	tm = Extract[string, time.Time](m, "str", strToTime)
+	require.True(t, tm.IsPresent())
+	tm = Extract[string, time.Time](m, "time", strToTime)
+	require.True(t, tm.IsPresent())
+}
+
 func TestExtractJson(t *testing.T) {
-	m := map[string]interface{}{
+	m := map[string]any{
 		"str":  "Str",
 		"int":  16,
 		"time": time.Now(),
@@ -77,8 +131,213 @@ func TestExtractJson(t *testing.T) {
 	require.False(t, dt.IsPresent())
 }
 
+func TestExtractJson_WithConverters(t *testing.T) {
+	m := map[string]any{
+		"int":  json.Number("16"),
+		"time": time.Now(),
+		"str":  "2023-10-18T13:00:00Z",
+	}
+
+	jnToInt := func(v any) (int, bool) {
+		switch vt := v.(type) {
+		case json.Number:
+			if v, err := vt.Int64(); err == nil {
+				return int(v), true
+			}
+		}
+		return 0, false
+	}
+	i := ExtractJson[int](m, "int")
+	require.False(t, i.IsPresent())
+	i = ExtractJson[int](m, "int", jnToInt)
+	require.True(t, i.IsPresent())
+
+	timeToStr := func(v any) (string, bool) {
+		switch vt := v.(type) {
+		case time.Time:
+			return vt.Format(time.RFC3339), true
+		}
+		return "", false
+	}
+	s := ExtractJson[string](m, "time")
+	require.False(t, s.IsPresent())
+	s = ExtractJson[string](m, "time", timeToStr)
+	require.True(t, s.IsPresent())
+
+	strToTime := func(v any) (time.Time, bool) {
+		switch vt := v.(type) {
+		case string:
+			if tv, err := time.Parse(time.RFC3339, vt); err == nil {
+				return tv, true
+			}
+		}
+		return time.Time{}, false
+	}
+	tm := ExtractJson[time.Time](m, "str")
+	require.False(t, tm.IsPresent())
+	tm = ExtractJson[time.Time](m, "time")
+	require.True(t, tm.IsPresent())
+	tm = ExtractJson[time.Time](m, "str", strToTime)
+	require.True(t, tm.IsPresent())
+	tm = ExtractJson[time.Time](m, "time", strToTime)
+	require.True(t, tm.IsPresent())
+}
+
+func TestExtractJsonPath(t *testing.T) {
+	m := map[string]any{
+		"arr": []any{
+			"first",
+			2,
+			map[string]any{
+				"foo": "bar",
+			},
+		},
+		"foo": map[string]any{
+			"bar": map[string]any{
+				"baz": []any{
+					"first",
+					2,
+					map[string]any{
+						"foo": "bar",
+					},
+				},
+			},
+		},
+	}
+	sl, p := ExtractJsonPath[[]any](m, "arr")
+	require.True(t, sl.IsPresent())
+	require.Equal(t, 0, len(p))
+	sm, p := ExtractJsonPath[map[string]any](m, "foo")
+	require.True(t, sm.IsPresent())
+	require.Equal(t, 0, len(p))
+
+	first, p := ExtractJsonPath[string](m, "arr[0]")
+	require.True(t, first.IsPresent())
+	require.Equal(t, 2, len(p))
+	require.True(t, p[0])
+	require.True(t, p[1])
+
+	last, p := ExtractJsonPath[map[string]any](m, "arr[-1]")
+	require.True(t, last.IsPresent())
+	require.Equal(t, 2, len(p))
+	require.True(t, p[0])
+	require.True(t, p[1])
+
+	foo, p := ExtractJsonPath[string](m, "arr[-1].foo")
+	require.True(t, foo.IsPresent())
+	require.Equal(t, 2, len(p))
+	require.True(t, p[0])
+	require.True(t, p[1])
+	require.Equal(t, "bar", foo.Default(""))
+
+	x, p := ExtractJsonPath[any](m, "arr[-1].foo.xxx")
+	require.False(t, x.IsPresent())
+	require.Equal(t, 3, len(p))
+	require.True(t, p[0])
+	require.True(t, p[1])
+	require.False(t, p[2])
+
+	x, p = ExtractJsonPath[any](m, "arr[0].foo")
+	require.False(t, x.IsPresent())
+	require.Equal(t, 2, len(p))
+	require.True(t, p[0])
+	require.False(t, p[1])
+
+	x, p = ExtractJsonPath[any](m, "arr[-4]")
+	require.False(t, x.IsPresent())
+	require.Equal(t, 2, len(p))
+	require.True(t, p[0])
+	require.False(t, p[1])
+
+	x, p = ExtractJsonPath[any](m, "foo[0]")
+	require.False(t, x.IsPresent())
+	require.Equal(t, 2, len(p))
+	require.True(t, p[0])
+	require.False(t, p[1])
+
+	x, p = ExtractJsonPath[any](m, "xxx[0]")
+	require.False(t, x.IsPresent())
+	require.Equal(t, 1, len(p))
+	require.False(t, p[0])
+
+	x, p = ExtractJsonPath[any](m, "xxx.yyy")
+	require.False(t, x.IsPresent())
+	require.Equal(t, 1, len(p))
+	require.False(t, p[0])
+
+	foo, p = ExtractJsonPath[string](m, "foo.bar.baz[-1].foo")
+	require.True(t, foo.IsPresent())
+	require.Equal(t, 4, len(p))
+	require.True(t, p[0])
+	require.True(t, p[1])
+	require.True(t, p[2])
+	require.True(t, p[3])
+
+	foo, p = ExtractJsonPath[string](m, "foo.bar.baz[-4].foo")
+	require.False(t, foo.IsPresent())
+	require.Equal(t, 4, len(p))
+	require.True(t, p[0])
+	require.True(t, p[1])
+	require.True(t, p[2])
+	require.False(t, p[3])
+
+	first, p = ExtractJsonPath[string](m, "foo.bar.baz[0]")
+	require.True(t, first.IsPresent())
+	require.Equal(t, 4, len(p))
+	require.True(t, p[0])
+	require.True(t, p[1])
+	require.True(t, p[2])
+	require.True(t, p[3])
+
+	foo, p = ExtractJsonPath[string](m, "foo.bar.baz.foo")
+	require.False(t, foo.IsPresent())
+	require.Equal(t, 3, len(p))
+	require.True(t, p[0])
+	require.True(t, p[1])
+	require.False(t, p[2])
+}
+
+func TestExtractJsonPath_WithConverters(t *testing.T) {
+	m := map[string]any{
+		"arr": []any{
+			"first",
+			2,
+		},
+		"foo": map[string]any{
+			"bar": map[string]any{
+				"baz": 2,
+			},
+		},
+	}
+	intToStr := func(v any) (string, bool) {
+		switch vt := v.(type) {
+		case int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64:
+			return fmt.Sprintf("%d", vt), true
+		}
+		return "", false
+	}
+
+	s, _ := ExtractJsonPath[string](m, "arr[-1]")
+	require.False(t, s.IsPresent())
+	s, _ = ExtractJsonPath[string](m, "arr[-1]", intToStr)
+	require.True(t, s.IsPresent())
+	require.Equal(t, "2", s.Default(""))
+	s, _ = ExtractJsonPath[string](m, "arr[0]")
+	require.True(t, s.IsPresent())
+	require.Equal(t, "first", s.Default(""))
+	s, _ = ExtractJsonPath[string](m, "arr[0]", intToStr)
+	require.True(t, s.IsPresent())
+	require.Equal(t, "first", s.Default(""))
+
+	s, _ = ExtractJsonPath[string](m, "foo.bar.baz")
+	require.False(t, s.IsPresent())
+	s, _ = ExtractJsonPath[string](m, "foo.bar.baz", intToStr)
+	require.True(t, s.IsPresent())
+	require.Equal(t, "2", s.Default(""))
+}
+
 func TestGet(t *testing.T) {
-	m := map[string]interface{}{
+	m := map[string]any{
 		"foo": "foo value",
 		"bar": 1,
 	}
@@ -105,11 +364,11 @@ func TestGet(t *testing.T) {
 }
 
 func TestOptMap_Get(t *testing.T) {
-	m := map[string]interface{}{
+	m := map[string]any{
 		"foo": "foo value",
 		"bar": nil,
 	}
-	om := OptMap[string, interface{}](m)
+	om := OptMap[string, any](m)
 	ov := om.Get("foo")
 	require.True(t, ov.IsPresent())
 	ov = om.Get("bar")
@@ -119,13 +378,13 @@ func TestOptMap_Get(t *testing.T) {
 }
 
 func TestOptMap_IfPresent(t *testing.T) {
-	m := map[string]interface{}{
+	m := map[string]any{
 		"foo": "foo value",
 		"bar": nil,
 	}
-	om := OptMap[string, interface{}](m)
+	om := OptMap[string, any](m)
 	called := false
-	f := func(key string, v interface{}) {
+	f := func(key string, v any) {
 		called = true
 	}
 	om.IfPresent("foo", f)
@@ -141,14 +400,14 @@ func TestOptMap_IfPresent(t *testing.T) {
 }
 
 func TestOptMap_IfPresentOtherwise(t *testing.T) {
-	m := map[string]interface{}{
+	m := map[string]any{
 		"foo": "foo value",
 		"bar": nil,
 	}
-	om := OptMap[string, interface{}](m)
+	om := OptMap[string, any](m)
 	called := false
 	otherCalled := false
-	f := func(key string, v interface{}) {
+	f := func(key string, v any) {
 		called = true
 	}
 	other := func(key string) {
@@ -176,11 +435,11 @@ func TestOptMap_IfPresentOtherwise(t *testing.T) {
 }
 
 func TestOptMap_Default(t *testing.T) {
-	m := map[string]interface{}{
+	m := map[string]any{
 		"foo": "foo value",
 		"bar": nil,
 	}
-	om := OptMap[string, interface{}](m)
+	om := OptMap[string, any](m)
 	v := om.Default("foo", "defaulted")
 	require.Equal(t, "foo value", v)
 	v = om.Default("bar", "defaulted")
@@ -190,12 +449,12 @@ func TestOptMap_Default(t *testing.T) {
 }
 
 func TestOptMap_ComputeIfAbsent(t *testing.T) {
-	m := map[string]interface{}{
+	m := map[string]any{
 		"foo": "foo value",
 		"bar": nil,
 	}
-	om := OptMap[string, interface{}](m)
-	f := func(k string) interface{} {
+	om := OptMap[string, any](m)
+	f := func(k string) any {
 		if k == "baz" {
 			return nil
 		}
@@ -218,13 +477,13 @@ func TestOptMap_ComputeIfAbsent(t *testing.T) {
 }
 
 func TestOptMap_ComputeIfPresent(t *testing.T) {
-	m := map[string]interface{}{
+	m := map[string]any{
 		"foo": "foo value",
 		"bar": nil,
 		"baz": "baz value",
 	}
-	om := OptMap[string, interface{}](m)
-	f := func(k string, v interface{}) interface{} {
+	om := OptMap[string, any](m)
+	f := func(k string, v any) any {
 		if k == "baz" {
 			return nil
 		}
@@ -247,11 +506,11 @@ func TestOptMap_ComputeIfPresent(t *testing.T) {
 }
 
 func TestOptMap_PutIfAbsent(t *testing.T) {
-	m := map[string]interface{}{
+	m := map[string]any{
 		"foo": "foo value",
 		"bar": nil,
 	}
-	om := OptMap[string, interface{}](m)
+	om := OptMap[string, any](m)
 	r := om.PutIfAbsent("foo", "absent value")
 	require.False(t, r)
 	orgV, ok := m["foo"]
@@ -270,11 +529,11 @@ func TestOptMap_PutIfAbsent(t *testing.T) {
 }
 
 func TestOptMap_ReplaceIfPresent(t *testing.T) {
-	m := map[string]interface{}{
+	m := map[string]any{
 		"foo": "foo value",
 		"bar": nil,
 	}
-	om := OptMap[string, interface{}](m)
+	om := OptMap[string, any](m)
 	r := om.ReplaceIfPresent("foo", "replacement value")
 	require.True(t, r)
 	orgV, ok := m["foo"]

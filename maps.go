@@ -1,29 +1,178 @@
 package gopt
 
+import (
+	"strconv"
+	"strings"
+)
+
+// Converter is function(s) that can be passed to Extract, ExtractJson and ExtractJsonPath to convert the value found to the required type
+//
+// Each converter passed is called successively until one returns true as the second return arg
+type Converter[T any] func(value any) (T, bool)
+
 // Extract extracts an optional value, of the specified type, from a map
 //
 // If the key is present (and the value is non-nil and of the specified type) then an optional with the value is returned, otherwise an empty optional is returned
-func Extract[K comparable, T any](m map[K]any, key K) *Optional[T] {
+func Extract[K comparable, T any](m map[K]any, key K, converters ...Converter[T]) *Optional[T] {
 	result := Empty[T]()
 	if rv, ok := m[key]; ok && isPresent(rv) {
 		if v, ok := rv.(T); ok {
+			result = Of[T](v)
+		} else if v, ok := runConverters(rv, converters...); ok {
 			result = Of[T](v)
 		}
 	}
 	return result
 }
 
-// ExtractJson extracts an optional value, of the specified type, from a map[string]interface{}
+// ExtractJson extracts an optional value, of the specified type, from a map[string]any
 //
 // If the key is present (and the value is non-nil and of the specified type) then an optional with the value is returned, otherwise an empty optional is returned
-func ExtractJson[T any](m map[string]interface{}, key string) *Optional[T] {
+func ExtractJson[T any](m map[string]any, key string, converters ...Converter[T]) *Optional[T] {
 	result := Empty[T]()
 	if rv, ok := m[key]; ok && isPresent(rv) {
 		if v, ok := rv.(T); ok {
 			result = Of[T](v)
+		} else if v, ok := runConverters(rv, converters...); ok {
+			result = Of[T](v)
 		}
 	}
 	return result
+}
+
+// ExtractJsonPath extracts an optional value, of the specified type, from a map[string]any by traversing the supplied JSON path
+//
+// If the key is present (and the value is non-nil and of the specified type) then an optional with the value is returned, otherwise an empty optional is returned
+//
+// The supplied JSON path is a string path with parts separated by "." - where array properties can be indexed using notation "property[n]"
+//
+// The index n may be positive (or zero) or negative (indicating relative index to the end).  For example, given a map of:
+//   m := map[string]any{
+//     "foo": map[string]any{
+//       "bar": []any{
+//         map[string]any{
+//           "baz": "X",
+//         },
+//         map[string]any{
+//           "baz": "Y",
+//         },
+//       }
+//     }
+//   }
+// then using:
+//  o, _ := ExtractJsonPath[string](m, "foo.bar[0].baz")
+// would yield a present Optional with value "X"
+//
+// or using:
+//  o, _ := ExtractJsonPath[string](m, "foo.bar[-1].baz")
+// would yield a present Optional with value "Y"
+//
+//
+// The second result arg of ExtractJsonPath is a slice of bools indicating the whether the path items existed - if the returned
+// Optional is not present it may be that the final property of the path was not found (or the incorrect type) or that the path was not found...
+// if the path was not found, then the final element in that second slice return arg will be false
+func ExtractJsonPath[T any](m map[string]any, path string, converters ...Converter[T]) (*Optional[T], []bool) {
+	parts := strings.Split(path, ".")
+	l := len(parts)
+	if l == 1 && !(strings.HasSuffix(parts[0], "]") && strings.Contains(parts[0], "[")) {
+		return ExtractJson[T](m, parts[0]), nil
+	}
+	result := Empty[T]()
+	pathPresent := make([]bool, 0, l-1)
+	curr := m
+	ok := false
+	for i, part := range parts {
+		if pty, isIndexed, idx := getProperty(part); isIndexed {
+			if curr, result, pathPresent, ok = extractPathIndexed[T](pty, idx, i == l-1, curr, result, pathPresent, converters...); !ok {
+				break
+			}
+		} else if curr, result, pathPresent, ok = extractPathProperty[T](pty, i == l-1, curr, result, pathPresent, converters...); !ok {
+			break
+		}
+	}
+	return result, pathPresent
+}
+
+func extractPathProperty[T any](pty string, last bool, curr map[string]any, result *Optional[T], pathPresent []bool, converters ...Converter[T]) (map[string]any, *Optional[T], []bool, bool) {
+	isOk := false
+	if rv, ok := curr[pty]; ok {
+		if last {
+			if av, ok := rv.(T); ok && isPresent(rv) {
+				isOk = true
+				result = Of[T](av)
+			} else if cv, ok := runConverters[T](rv, converters...); ok {
+				isOk = true
+				result = Of[T](cv)
+			}
+		} else if curr, ok = rv.(map[string]any); ok {
+			isOk = true
+			pathPresent = append(pathPresent, true)
+		} else {
+			pathPresent = append(pathPresent, false)
+		}
+	} else {
+		pathPresent = append(pathPresent, false)
+	}
+	return curr, result, pathPresent, isOk
+}
+
+func extractPathIndexed[T any](pty string, idx int, last bool, curr map[string]any, result *Optional[T], pathPresent []bool, converters ...Converter[T]) (map[string]any, *Optional[T], []bool, bool) {
+	isOk := false
+	if rv, ok := curr[pty]; ok {
+		pathPresent = append(pathPresent, true)
+		if sv, ok := rv.([]any); ok {
+			if idx < 0 {
+				idx = len(sv) + idx
+			}
+			if idx >= 0 && idx < len(sv) {
+				v := sv[idx]
+				if last {
+					pathPresent = append(pathPresent, true)
+					if av, ok := v.(T); ok && isPresent(v) {
+						result = Of[T](av)
+						isOk = true
+					} else if cv, ok := runConverters[T](v, converters...); ok {
+						result = Of[T](cv)
+						isOk = true
+					}
+				} else if curr, ok = v.(map[string]any); ok {
+					pathPresent = append(pathPresent, true)
+					isOk = true
+				} else {
+					pathPresent = append(pathPresent, false)
+				}
+			} else {
+				pathPresent = append(pathPresent, false)
+			}
+		} else {
+			pathPresent = append(pathPresent, false)
+		}
+	} else {
+		pathPresent = append(pathPresent, false)
+	}
+	return curr, result, pathPresent, isOk
+}
+
+func getProperty(pathPart string) (string, bool, int) {
+	if oat := strings.LastIndexByte(pathPart, '['); oat != -1 && strings.HasSuffix(pathPart, "]") {
+		pty := pathPart[:oat]
+		idxs := pathPart[oat+1 : len(pathPart)-1]
+		if idx, err := strconv.ParseInt(idxs, 10, 64); err == nil {
+			return pty, true, int(idx)
+		}
+	}
+	return pathPart, false, -1
+}
+
+func runConverters[T any](value any, converters ...Converter[T]) (result T, ok bool) {
+	for _, converter := range converters {
+		if converter != nil {
+			if result, ok = converter(value); ok {
+				return
+			}
+		}
+	}
+	return
 }
 
 // Get obtains an optional from a map
